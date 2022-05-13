@@ -26,7 +26,6 @@ for loop in range(episode):
     if sum(sum(np.power(u - u_tmp, 2))) < tolerance:
         break
 
-    u = np.sum(u_hist, axis=0) / (loop + 1)
     u_tmp = u
     rho = get_rho_from_u(u, d)
 
