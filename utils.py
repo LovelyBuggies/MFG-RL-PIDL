@@ -1,5 +1,7 @@
 import numpy as np
-
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
 def get_rho_from_u(u, d):
     cell = u.shape[0]
@@ -17,3 +19,16 @@ def get_rho_from_u(u, d):
 
     return rho
 
+def plot_rho(cell, t_num, rho, fig_name):
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+    x = np.linspace(0, 1, cell)
+    t = np.linspace(0, t_num, cell * t_num)
+    t_mesh, x_mesh = np.meshgrid(t, x)
+
+    surf = ax.plot_surface(x_mesh, t_mesh, rho, cmap=cm.jet,
+                           linewidth=0, antialiased=False)
+
+    ax.zaxis.set_major_locator(LinearLocator(10))
+    ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+    plt.savefig(f"./fig/{fig_name}.png")
