@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import torch
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
@@ -32,3 +33,12 @@ def plot_rho(cell, t_num, rho, fig_name):
     ax.zaxis.set_major_locator(LinearLocator(10))
     ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
     plt.savefig(f"./fig/{fig_name}.png")
+
+def update_density(density, action):
+    cell = density.shape[0]
+    granularity = density.shape[1]
+    for x in range(cell):
+        for t in range(1, granularity):
+            density[x][t] = density[x][t - 1] + density[x - 1][t - 1] * action[x - 1][t - 1] - density[x][t - 1] * action[x][t - 1]
+
+    return density
