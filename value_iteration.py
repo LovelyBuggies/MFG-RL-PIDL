@@ -12,7 +12,7 @@ def value_iteration(rho):
     for i in range(cell + 1):
         v[i][-1] = v_0 - i * v_0 / cell
 
-    for v_it in range(episode):
+    for _ in range(episode):
         for t in range(t_num * cell):
             for i in range(cell):
                 u[i][t] = (v[i][t + 1] - v[i + 1][t + 1]) / (2 * t_delta)

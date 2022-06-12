@@ -4,3 +4,4 @@ __pycache__/*
 fig/*
 .DS_Store
 */.DS_Store
+data/*
