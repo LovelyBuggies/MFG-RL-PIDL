@@ -1,29 +1,24 @@
 import numpy as np
 
-from value_iteration import value_iteration, value_iteration_non_separable
+from value_iteration import value_iteration
 from utils import get_rho_from_u, plot_rho
 
-cell = 32
-t_num = 4
-episode = 100
-tolerance = 1
+n_cell = 8
+n_action = 4
+T_terminal = 2
+u_max = 1
+episode = 20
 
-u = np.zeros((cell, cell * t_num), dtype=np.float64)
-u_hist = np.array([u])
-
-d = np.zeros((cell * t_num, 1), dtype=np.float64)
+u = 0.5 * np.ones((n_cell, n_cell * T_terminal), dtype=np.float64)
+d = np.zeros((n_cell * T_terminal, 1), dtype=np.float64)
 d[1] = 1
 
 rho = get_rho_from_u(u, d)
-rho_tmp = np.zeros(u.shape, dtype=np.float64)
+u_hist = list()
 for loop in range(episode):
     print(loop)
-    u, v = value_iteration(rho)
-    np.append(u_hist, u)
-    print(np.sqrt(sum(sum((rho - rho_tmp)**2))))
-    if np.sqrt(sum(sum((rho - rho_tmp)**2))) < tolerance:
-        break
-
-    rho_tmp = rho
+    u, V = value_iteration(rho, u_max, n_action)
+    u_hist.append(u)
+    u = np.array(u_hist).mean(axis=0)
     rho = get_rho_from_u(u, d)
-    plot_rho(cell, t_num, rho, str(loop))
+    plot_rho(n_cell, T_terminal, rho, str(loop))
