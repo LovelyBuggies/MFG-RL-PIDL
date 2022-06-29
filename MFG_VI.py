@@ -3,7 +3,7 @@ import numpy as np
 from value_iteration import value_iteration
 from utils import get_rho_from_u, plot_rho
 
-n_cell = 8
+n_cell = 16
 n_action = 4
 T_terminal = 2
 u_max = 1
@@ -21,4 +21,4 @@ for loop in range(episode):
     u_hist.append(u)
     u = np.array(u_hist).mean(axis=0)
     rho = get_rho_from_u(u, d)
-    plot_rho(n_cell, T_terminal, rho, str(loop))
+    plot_rho(n_cell, T_terminal, V[:-1, :-1], str(loop))
