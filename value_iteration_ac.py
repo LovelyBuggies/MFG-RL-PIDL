@@ -6,9 +6,12 @@ class Critic(nn.Module):
     def __init__(self, state_dim):
         super().__init__()
         self.model = nn.Sequential(
-            nn.Linear(state_dim, 8),
-            nn.Linear(8, 4),
-            nn.Linear(4, 1)
+            nn.Linear(state_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, 16),
+            nn.ReLU(),
+            nn.Linear(16, 1),
+            nn.ReLU()
         )
 
     def forward(self, x):
@@ -25,7 +28,7 @@ def value_iteration_ac(rho, u_max, n_action):
     u = dict()
     V = dict()
     critic = Critic(2)
-    critic_optimizer = torch.optim.Adam(critic.parameters(), lr=1e-4)
+    critic_optimizer = torch.optim.Adam(critic.parameters(), lr=1e-3)
     u_new = np.zeros((n_cell, T))
     V_new = np.zeros((n_cell + 1, T + 1), dtype=np.float64)
 
@@ -48,14 +51,18 @@ def value_iteration_ac(rho, u_max, n_action):
                         min_value = value
                         u[(i, t)] = speed
                         V[(i, t)] = min_value
-                        for shuo in range(50):
-                            state = np.array([i, t])
-                            print(critic(state), V[(i, t)])
-                            advantage = value - critic(state)
-                            critic_loss = advantage.pow(2)
-                            critic_optimizer.zero_grad()
-                            critic_loss.backward()
-                            critic_optimizer.step()
+
+    for shuo in range(1000):
+        truths = torch.tensor(list(V.values()), requires_grad=True)
+        preds = torch.reshape(critic(np.array(list(V.keys()), dtype=float)), (1, len(V)))
+        advantage = truths - preds
+        critic_loss = advantage.abs().mean()
+        print("\n", preds)
+        print(truths)
+        print(critic_loss)
+        critic_optimizer.zero_grad()
+        critic_loss.backward()
+        critic_optimizer.step()
 
     for i in range(n_cell):
         for t in range(T):

@@ -4,7 +4,7 @@ from value_iteration import value_iteration
 from value_iteration_ac import value_iteration_ac
 from utils import get_rho_from_u, plot_rho
 
-n_cell = 4
+n_cell = 2
 n_action = 2
 T_terminal = 2
 u_max = 1
