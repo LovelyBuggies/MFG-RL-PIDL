@@ -18,7 +18,7 @@ class Critic(nn.Module):
         return self.model(torch.from_numpy(x).float())
 
 def value_iteration_ac(rho, u_max, n_action):
-    iteration = 1
+    iteration = 20
     n_cell = rho.shape[0]
     delta_u = u_max / n_action
     u_action = np.arange(0, u_max + delta_u, delta_u)
@@ -52,17 +52,17 @@ def value_iteration_ac(rho, u_max, n_action):
                         u[(i, t)] = speed
                         V[(i, t)] = min_value
 
-    for shuo in range(1000):
-        truths = torch.tensor(list(V.values()), requires_grad=True)
-        preds = torch.reshape(critic(np.array(list(V.keys()), dtype=float)), (1, len(V)))
-        advantage = truths - preds
-        critic_loss = advantage.abs().mean()
-        print("\n", preds)
-        print(truths)
-        print(critic_loss)
-        critic_optimizer.zero_grad()
-        critic_loss.backward()
-        critic_optimizer.step()
+        for shuo in range(1000):
+            truths = torch.tensor(list(V.values()), requires_grad=True)
+            preds = torch.reshape(critic(np.array(list(V.keys()), dtype=float)), (1, len(V)))
+            advantage = truths - preds
+            critic_loss = advantage.abs().mean()
+            print("\n", preds)
+            print(truths)
+            print(critic_loss)
+            critic_optimizer.zero_grad()
+            critic_loss.backward()
+            critic_optimizer.step()
 
     for i in range(n_cell):
         for t in range(T):
