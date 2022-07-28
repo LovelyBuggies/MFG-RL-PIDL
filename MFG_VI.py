@@ -4,11 +4,11 @@ from value_iteration import value_iteration
 from value_iteration_ac import value_iteration_ac
 from utils import get_rho_from_u, plot_rho
 
-n_cell = 2
-n_action = 2
+n_cell = 4
+n_action = 4
 T_terminal = 2
 u_max = 1
-episode = 1
+episode = 15
 
 u = 0.5 * np.ones((n_cell, n_cell * T_terminal), dtype=np.float64)
 d = np.zeros((n_cell * T_terminal, 1), dtype=np.float64)

@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 
+
 class Critic(nn.Module):
     def __init__(self, state_dim):
         super().__init__()
@@ -14,11 +15,18 @@ class Critic(nn.Module):
             nn.ReLU()
         )
 
+        def init_weights(m):
+            if isinstance(m, nn.Linear):
+                torch.nn.init.xavier_uniform(m.weight)
+                m.bias.data.fill_(0.01)
+
+        self.model.apply(init_weights)
+
     def forward(self, x):
         return self.model(torch.from_numpy(x).float())
 
 def value_iteration_ac(rho, u_max, n_action):
-    iteration = 20
+    iteration = 36
     n_cell = rho.shape[0]
     delta_u = u_max / n_action
     u_action = np.arange(0, u_max + delta_u, delta_u)
@@ -32,7 +40,8 @@ def value_iteration_ac(rho, u_max, n_action):
     u_new = np.zeros((n_cell, T))
     V_new = np.zeros((n_cell + 1, T + 1), dtype=np.float64)
 
-    for _ in range(iteration):
+    for v_it in range(iteration):
+        bootstrap = int(iteration * 2 / 3) + 1
         for i in range(n_cell * n_action):
             for t in range(T):
                 min_value = np.float('inf')
@@ -41,8 +50,11 @@ def value_iteration_ac(rho, u_max, n_action):
                     new_i = int(i + speed / delta_u)
                     rho_i = int(i / n_action)
                     if new_i <= n_cell * n_action:
-                        value = delta_T * (0.5 * speed ** 2 + rho[rho_i, t] + 1) + V[(new_i, t + 1)] \
-                            if (new_i, t + 1) in V else delta_T * (0.5 * speed ** 2 + rho[rho_i, t] + 1)
+                        if v_it <= bootstrap:
+                            value = delta_T * (0.5 * speed ** 2 + rho[rho_i, t] + 1) + V[(new_i, t + 1)] \
+                                if (new_i, t + 1) in V else delta_T * (0.5 * speed ** 2 + rho[rho_i, t] + 1)
+                        else:
+                            value = delta_T * (0.5 * speed ** 2 + rho[rho_i, t] + 1) + critic(np.array([new_i, t + 1]))
                     else:
                         time = delta_u * delta_T * (n_cell * n_action - i) / speed
                         value = time * (0.5 * speed ** 2 + rho[rho_i, t] + 1)
@@ -52,17 +64,15 @@ def value_iteration_ac(rho, u_max, n_action):
                         u[(i, t)] = speed
                         V[(i, t)] = min_value
 
-        for shuo in range(1000):
-            truths = torch.tensor(list(V.values()), requires_grad=True)
-            preds = torch.reshape(critic(np.array(list(V.keys()), dtype=float)), (1, len(V)))
-            advantage = truths - preds
-            critic_loss = advantage.abs().mean()
-            print("\n", preds)
-            print(truths)
-            print(critic_loss)
-            critic_optimizer.zero_grad()
-            critic_loss.backward()
-            critic_optimizer.step()
+        if v_it >= bootstrap - 1:
+            for shuo in range(1000):
+                truths = torch.tensor(list(V.values()), requires_grad=True)
+                preds = torch.reshape(critic(np.array(list(V.keys()), dtype=float)), (1, len(V)))
+                advantage = truths - preds
+                critic_loss = advantage.abs().mean()
+                critic_optimizer.zero_grad()
+                critic_loss.backward()
+                critic_optimizer.step()
 
     for i in range(n_cell):
         for t in range(T):
