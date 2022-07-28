@@ -1,11 +1,14 @@
 import numpy as np
 import torch
 from torch import nn
+import random
+import time
 
 
 class DQN(nn.Module):
     def __init__(self, state_dim):
         super().__init__()
+        random.seed(time.time())
         self.model = nn.Sequential(
             nn.Linear(state_dim, 64),
             nn.Linear(64, 16),
@@ -40,7 +43,7 @@ def value_iteration_dqn(rho, u_max, n_action):
     V_new = np.zeros((n_cell + 1, T + 1), dtype=np.float64)
 
     for v_it in range(iteration):
-        bootstrap = int(iteration * 2 / 3) + 1
+        bootstrap = int(iteration * 3 / 4) + 1
         for i in range(n_cell * n_action):
             for t in range(T):
                 min_value = np.float('inf')
@@ -67,8 +70,10 @@ def value_iteration_dqn(rho, u_max, n_action):
             for shuo in range(1000):
                 truths = torch.tensor(list(V.values()), requires_grad=True)
                 preds = torch.reshape(dqn(np.array(list(V.keys()), dtype=float)), (1, len(V)))
-                if float(torch.count_nonzero(preds)) == 0:
-                    break
+                while float(torch.count_nonzero(preds)) == 0:  # to avoid zeros, else while -> if and break
+                    dqn = DQN(2)
+                    dqn_optimizer = torch.optim.Adam(dqn.parameters(), lr=1e-3)
+                    preds = torch.reshape(dqn(np.array(list(V.keys()), dtype=float)), (1, len(V)))
 
                 advantage = truths - preds
                 dqn_loss = advantage.abs().mean()
