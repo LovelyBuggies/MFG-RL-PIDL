@@ -1,7 +1,7 @@
 import numpy as np
 
 def value_iteration(rho, u_max, n_action):
-    iteration = 50
+    iteration = 36
     n_cell = rho.shape[0]
     delta_u = u_max / n_action
     u_action = np.arange(0, u_max + delta_u, delta_u)
