@@ -32,4 +32,4 @@ def plot_rho(n_cell, T_terminal, rho, fig_name):
     if not fig_name:
         plt.show()
     else:
-        plt.savefig(f"./fig/{fig_name}.png")
+        plt.savefig(fig_name)

@@ -2,6 +2,7 @@
 .idea/*
 __pycache__/*
 fig/*
+fig_rho/*
 .DS_Store
 */.DS_Store
 data/*

@@ -82,8 +82,7 @@ def value_iteration_dqn(rho, u_max, n_action):
                     dqn_optimizer = torch.optim.Adam(dqn.parameters(), lr=1e-3)
                     preds = torch.reshape(dqn(np.array(list(V.keys()), dtype=float)), (1, len(V)))
 
-                loss = truths - preds
-                dqn_loss = loss.abs().mean()
+                dqn_loss = (truths - preds).abs().mean()
                 dqn_optimizer.zero_grad()
                 dqn_loss.backward()
                 dqn_optimizer.step()
