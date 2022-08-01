@@ -1,3 +1,7 @@
+"""
+Basically changing the value array to a critic network. But this env is deterministic, V->Q, critic->DQN.
+"""
+
 import numpy as np
 import torch
 from torch import nn
@@ -48,6 +52,7 @@ def value_iteration_dqn(rho, u_max, n_action):
                     speed = u_action[j]
                     new_i = int(i + speed / delta_u)
                     rho_i = int(i / n_action)
+                    # bootstrap
                     if new_i <= n_cell * n_action:
                         if v_it <= bootstrap:
                             value = delta_T * (0.5 * speed ** 2 + rho[rho_i, t] + 1) + V[(new_i, t + 1)] \
@@ -63,6 +68,7 @@ def value_iteration_dqn(rho, u_max, n_action):
                         u[(i, t)] = speed
                         V[(i, t)] = min_value
 
+        # update network if not in bootstrap
         if v_it >= bootstrap - 1:
             for shuo in range(1000):
                 truths = torch.tensor(list(V.values()), requires_grad=True)
@@ -78,6 +84,7 @@ def value_iteration_dqn(rho, u_max, n_action):
                 dqn_loss.backward()
                 dqn_optimizer.step()
 
+    # return value for checking
     for i in range(n_cell):
         for t in range(T):
             u_new[i, t] = u[(i * n_action, t)]
