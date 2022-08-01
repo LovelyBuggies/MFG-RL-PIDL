@@ -1,7 +1,3 @@
-"""
-Basically changing the value array to a critic network. But this env is deterministic, V->Q, critic->DQN.
-"""
-
 import numpy as np
 import torch
 from torch import nn
@@ -9,7 +5,7 @@ import random
 import time
 
 
-class DQN(nn.Module):
+class Critic(nn.Module):
     def __init__(self, state_dim):
         super().__init__()
         random.seed(time.time())
@@ -32,7 +28,7 @@ class DQN(nn.Module):
         return self.model(torch.from_numpy(x).float())
 
 
-def value_iteration_dqn(rho, u_max, n_action):
+def value_iteration_a2c(rho, u_max, n_action):
     iteration = 36
     n_cell = rho.shape[0]
     delta_u = u_max / n_action
@@ -42,8 +38,8 @@ def value_iteration_dqn(rho, u_max, n_action):
     T = int(T_terminal / delta_T)
     u = dict()
     V = dict()
-    dqn = DQN(2)
-    dqn_optimizer = torch.optim.Adam(dqn.parameters(), lr=1e-3)
+    critic = Critic(2)
+    critic_optimizer = torch.optim.Adam(critic.parameters(), lr=1e-3)
     u_new = np.zeros((n_cell, T))
     V_new = np.zeros((n_cell + 1, T + 1), dtype=np.float64)
 
@@ -62,7 +58,7 @@ def value_iteration_dqn(rho, u_max, n_action):
                             value = delta_T * (0.5 * speed ** 2 + rho[rho_i, t] + 1) + V[(new_i, t + 1)] \
                                 if (new_i, t + 1) in V else delta_T * (0.5 * speed ** 2 + rho[rho_i, t] + 1)
                         else:
-                            value = delta_T * (0.5 * speed ** 2 + rho[rho_i, t] + 1) + dqn(np.array([new_i, t + 1]))
+                            value = delta_T * (0.5 * speed ** 2 + rho[rho_i, t] + 1) + critic(np.array([new_i, t + 1]))
                     else:
                         time = delta_u * delta_T * (n_cell * n_action - i) / speed
                         value = time * (0.5 * speed ** 2 + rho[rho_i, t] + 1)
@@ -76,22 +72,22 @@ def value_iteration_dqn(rho, u_max, n_action):
         if v_it >= bootstrap - 1:
             for shuo in range(1000):
                 truths = torch.tensor(list(V.values()), requires_grad=True)
-                preds = torch.reshape(dqn(np.array(list(V.keys()), dtype=float)), (1, len(V)))
+                preds = torch.reshape(critic(np.array(list(V.keys()), dtype=float)), (1, len(V)))
                 while float(torch.count_nonzero(preds)) == 0:  # to avoid zeros, else while -> if and break
-                    dqn = DQN(2)
-                    dqn_optimizer = torch.optim.Adam(dqn.parameters(), lr=1e-3)
-                    preds = torch.reshape(dqn(np.array(list(V.keys()), dtype=float)), (1, len(V)))
+                    critic = Critic(2)
+                    critic_optimizer = torch.optim.Adam(critic.parameters(), lr=1e-3)
+                    preds = torch.reshape(critic(np.array(list(V.keys()), dtype=float)), (1, len(V)))
 
                 advantage = truths - preds
-                dqn_loss = advantage.abs().mean()
-                dqn_optimizer.zero_grad()
-                dqn_loss.backward()
-                dqn_optimizer.step()
+                critic_loss = advantage.abs().mean()
+                critic_optimizer.zero_grad()
+                critic_loss.backward()
+                critic_optimizer.step()
 
     # return value for checking
     for i in range(n_cell):
         for t in range(T):
             u_new[i, t] = u[(i * n_action, t)]
-            V_new[i, t] = dqn(np.array([i * n_action, t]))
+            V_new[i, t] = critic(np.array([i * n_action, t]))
 
     return u_new, V_new

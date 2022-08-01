@@ -1,7 +1,7 @@
 import numpy as np
 
 from value_iteration import value_iteration
-from value_iteration_dqn import value_iteration_dqn
+from value_iteration_a2c import value_iteration_a2c
 from utils import get_rho_from_u, plot_rho
 
 n_cell = 16
@@ -19,7 +19,7 @@ u_hist = list()
 for loop in range(episode):
     print(loop)
     u, V = value_iteration(rho, u_max, n_action)
-    u_dqn, V_dqn = value_iteration_dqn(rho, u_max, n_action)
+    u_dqn, V_dqn = value_iteration_a2c(rho, u_max, n_action)
     print(u, V)
     print()
     print(u_dqn, V_dqn)
