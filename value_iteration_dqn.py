@@ -24,9 +24,6 @@ class DQN(nn.Module):
 
         self.model.apply(init_weights)
 
-    def forward(self, x):
-        return self.model(torch.from_numpy(x).float())
-
 def value_iteration_dqn(rho, u_max, n_action):
     iteration = 36
     n_cell = rho.shape[0]
