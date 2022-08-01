@@ -37,6 +37,7 @@ def value_iteration_a2c(rho, u_max, n_action):
     delta_T = 1 / n_cell
     T = int(T_terminal / delta_T)
     u = dict()
+    pg = dict()
     V = dict()
     critic = Critic(2)
     critic_optimizer = torch.optim.Adam(critic.parameters(), lr=1e-3)
@@ -63,6 +64,7 @@ def value_iteration_a2c(rho, u_max, n_action):
                         time = delta_u * delta_T * (n_cell * n_action - i) / speed
                         value = time * (0.5 * speed ** 2 + rho[rho_i, t] + 1)
 
+                    pg[(i, t)] = value
                     if min_value > value:
                         min_value = value
                         u[(i, t)] = speed
@@ -78,8 +80,8 @@ def value_iteration_a2c(rho, u_max, n_action):
                     critic_optimizer = torch.optim.Adam(critic.parameters(), lr=1e-3)
                     preds = torch.reshape(critic(np.array(list(V.keys()), dtype=float)), (1, len(V)))
 
-                advantage = truths - preds
-                critic_loss = advantage.abs().mean()
+                loss = truths - preds
+                critic_loss = loss.abs().mean()
                 critic_optimizer.zero_grad()
                 critic_loss.backward()
                 critic_optimizer.step()
