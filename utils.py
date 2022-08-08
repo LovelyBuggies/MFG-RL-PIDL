@@ -3,6 +3,24 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
+
+def calculate_optimal_costs(u, V):
+    n_cell = len(u)
+    T_terminal = int(len(u[0]) / n_cell)
+    curr_i, curr_t = 0, 0
+    costs = V[0, 0]
+    while curr_i < n_cell - 1:
+        if curr_t > T_terminal:
+            return float('inf')
+
+        curr_i += int(u[curr_i, curr_t])
+        curr_t += 1
+        costs += V[curr_i, curr_t]
+
+    return costs
+
+
+
 def get_rho_from_u(u, d):
     n_cell = u.shape[0]
     T_terminal = int(u.shape[1] / u.shape[0])

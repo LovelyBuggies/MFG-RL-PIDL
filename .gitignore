@@ -6,3 +6,4 @@ fig_rho/*
 .DS_Store
 */.DS_Store
 data/*
+demand.csv
