@@ -56,8 +56,6 @@ if __name__ == '__main__':
     u_max = 1
     episode = 15
 
-    # d = 0 * np.random.rand(n_cell * T_terminal, 1)
-    # d[1] = 1
     with open('demand.csv', 'w', newline='') as csv_file:
         field_names = [str(s) for s in list(range(n_cell * T_terminal))] + ['label']
         writer = csv.DictWriter(csv_file, fieldnames=field_names)
