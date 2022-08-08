@@ -80,7 +80,7 @@ def value_iteration_ddpg(rho, u_max):
                 if v_it <= bootstrap:
                     V[(i, t)] = delta_T * (0.5 * u[(i, t)] ** 2 + rho[i, t] * u[(i, t)] - u[(i, t)]) + (1 - u[(i, t)]) * V[(i, t + 1)] + u[(i, t)] * V[(i + 1, t + 1)]
                 else:
-                    V[(i, t)] = delta_T * (0.5 * u[(i, t)] ** 2 + rho[i, t] * u[(i, t)] - u[(i, t)]) + (1 - u[(i, t)]) * critic(np.array([i, t + 1])) + u[(i, t)] * critic(np.array([i + 1, t + 1]))
+                    V[(i, t)] = delta_T * (0.5 * actor(np.array([i, t])) ** 2 + rho[i, t] * actor(np.array([i, t])) - actor(np.array([i, t]))) + (1 - actor(np.array([i, t]))) * critic(np.array([i, t + 1])) + actor(np.array([i, t])) * critic(np.array([i + 1, t + 1]))
 
             for t in range(T + 1):
                 V[(n_cell, t)] = V[(0, t)]
