@@ -48,7 +48,7 @@ def value_iteration_dqn(rho, u_max, n_action):
     V_new = np.zeros((n_cell + 1, T + 1), dtype=np.float64)
 
     for v_it in range(iteration):
-        bootstrap = int(iteration * 3 / 4) + 1
+        bootstrap = int(iteration * 5 / 6) + 1
         for i in range(n_cell * n_action):
             for t in range(T):
                 min_value = np.float('inf')
