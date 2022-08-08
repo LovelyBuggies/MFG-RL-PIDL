@@ -15,7 +15,6 @@ class Actor(nn.Module):
             nn.Linear(16, 8),
             nn.ReLU(),
             nn.Linear(8, 1),
-            nn.ReLU()
         )
 
         def init_weights(m):
@@ -35,10 +34,10 @@ class Critic(nn.Module):
         random.seed(time.time())
         self.model = nn.Sequential(
             nn.Linear(state_dim, 64),
+            nn.ReLU(),
             nn.Linear(64, 16),
             nn.ReLU(),
             nn.Linear(16, 1),
-            nn.ReLU()
         )
 
         def init_weights(m):
@@ -52,50 +51,39 @@ class Critic(nn.Module):
         return self.model(torch.from_numpy(x).float())
 
 
-def value_iteration_ddpg(rho, u_max, n_action):
+def value_iteration_ddpg(rho, u_max):
     iteration = 36
     n_cell = rho.shape[0]
-    delta_u = u_max / n_action
-    u_action = np.arange(0, u_max + delta_u, delta_u)
     T_terminal = int(rho.shape[1] / rho.shape[0])
     delta_T = 1 / n_cell
     T = int(T_terminal / delta_T)
-
     u = dict()
+    V = dict()
+    for i in range(n_cell + 1):
+        for t in range(T + 1):
+            if i < n_cell and t < T:
+                u[(i, t)] = 0
+
+            V[(i, t)] = 0
+
     actor = Actor(2)
     actor_optimizer = torch.optim.Adam(actor.parameters(), lr=1e-3)
-
-    V = dict()
     critic = Critic(2)
     critic_optimizer = torch.optim.Adam(critic.parameters(), lr=1e-3)
 
-    u_new = np.zeros((n_cell, T))
-    V_new = np.zeros((n_cell + 1, T + 1), dtype=np.float64)
-
     for v_it in range(iteration):
         bootstrap = int(iteration * 5 / 6) + 1
-        for i in range(n_cell * n_action):
+        for i in range(n_cell):
             for t in range(T):
-                min_value = np.float('inf')
-                for j in np.arange(n_action + 1):
-                    speed = u_action[j]
-                    new_i = int(i + speed / delta_u)
-                    rho_i = int(i / n_action)
-                    # bootstrap
-                    if new_i <= n_cell * n_action:
-                        if v_it <= bootstrap:
-                            value = delta_T * (0.5 * speed ** 2 + rho[rho_i, t] + 1) + V[(new_i, t + 1)] \
-                                if (new_i, t + 1) in V else delta_T * (0.5 * speed ** 2 + rho[rho_i, t] + 1)
-                        else:
-                            value = delta_T * (0.5 * speed ** 2 + rho[rho_i, t] + 1) + critic(np.array([new_i, t + 1]))
-                    else:
-                        time = delta_u * delta_T * (n_cell * n_action - i) / speed
-                        value = time * (0.5 * speed ** 2 + rho[rho_i, t] + 1)
+                u[(i, t)] = (V[(i, t + 1)] - V[(i + 1, t + 1)]) / delta_T + 1 - rho[i, t]
+                u[(i, t)] = min(max(u[(i, t)], 0), 1)
+                if v_it <= bootstrap:
+                    V[(i, t)] = delta_T * (0.5 * u[(i, t)] ** 2 + rho[i, t] * u[(i, t)] - u[(i, t)]) + (1 - u[(i, t)]) * V[(i, t + 1)] + u[(i, t)] * V[(i + 1, t + 1)]
+                else:
+                    V[(i, t)] = delta_T * (0.5 * u[(i, t)] ** 2 + rho[i, t] * u[(i, t)] - u[(i, t)]) + (1 - u[(i, t)]) * critic(np.array([i, t + 1])) + u[(i, t)] * critic(np.array([i + 1, t + 1]))
 
-                    if min_value > value:
-                        min_value = value
-                        u[(i, t)] = speed
-                        V[(i, t)] = min_value
+            for t in range(T + 1):
+                V[(n_cell, t)] = V[(0, t)]
 
         # update critic network if not in bootstrap
         if v_it >= bootstrap - 1:
@@ -113,7 +101,7 @@ def value_iteration_ddpg(rho, u_max, n_action):
                 critic_optimizer.step()
 
             # update actor network
-            for liu in range(500):
+            for liu in range(1000):
                 truths = torch.tensor(list(u.values()), requires_grad=True)
                 preds = torch.reshape(actor(np.array(list(u.keys()), dtype=float)), (1, len(u)))
                 while float(torch.count_nonzero(preds)) == 0:  # to avoid zeros, else while -> if and break
@@ -122,23 +110,18 @@ def value_iteration_ddpg(rho, u_max, n_action):
                     preds = torch.reshape(actor(np.array(list(u.keys()), dtype=float)), (1, len(u)))
 
                 actor_loss = (truths - preds).abs().mean()
+                print(actor_loss)
                 actor_optimizer.zero_grad()
                 actor_loss.backward()
                 actor_optimizer.step()
 
-    # return value for checking
-    for i in range(n_cell):
-        for t in range(T):
-            speed = u[(i * n_action, t)]
-            u_new[i, t] = speed
-            V_new[i, t] = critic(np.array([i * n_action, t]))
+    u_new = np.zeros((n_cell, T))
+    V_new = np.zeros((n_cell + 1, T + 1), dtype=np.float64)
+    for i in range(n_cell + 1):
+        for t in range(T + 1):
+            if i < n_cell and t < T:
+                u_new[i, t] = actor(np.array([i, t]))
 
-    print(u_new, V_new, '\n')
-
-    for i in range(n_cell):
-        for t in range(T):
-            speed = actor(np.array([i * n_action, t]))
-            u_new[i, t] = min(speed, 1)
-            V_new[i, t] = critic(np.array([i * n_action, t]))
+            V_new[i, t] = critic(np.array([i, t]))
 
     return u_new, V_new

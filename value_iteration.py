@@ -1,10 +1,8 @@
 import numpy as np
 
-def value_iteration(rho, u_max, n_action):
-    iteration = 500
+def value_iteration(rho, u_max):
+    iteration = 36
     n_cell = rho.shape[0]
-    delta_u = u_max / n_action
-    u_action = np.arange(0, u_max + delta_u, delta_u)
     T_terminal = int(rho.shape[1] / rho.shape[0])
     delta_T = 1 / n_cell
     T = int(T_terminal / delta_T)
@@ -14,12 +12,8 @@ def value_iteration(rho, u_max, n_action):
     for _ in range(iteration):
         for i in range(n_cell):
             for t in range(T):
-                min_value = np.float('inf')
                 u[i, t] = (V[i, t + 1] - V[i + 1, t + 1]) / delta_T + 1 - rho[i, t]
-                if u[i, t] <= 0:
-                    u[i, t] = 0
-                if u[i, t] >= 1:
-                    u[i, t] = 1
+                u[i, t] = min(max(u[i, t], 0), 1)
                 V[i, t] = delta_T * (0.5 * u[i, t] ** 2 + rho[i, t] * u[i, t] - u[i, t]) + (1 - u[i, t]) * V[i, t + 1] + u[i, t] * V[i + 1, t + 1]
 
         V[-1, :] = V[0, :].copy()

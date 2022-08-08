@@ -2,57 +2,47 @@ import numpy as np
 
 from value_iteration import value_iteration
 from value_iteration_dqn import value_iteration_dqn
-from value_iteration_a2c import value_iteration_a2c
 from value_iteration_ddpg import value_iteration_ddpg
-from utils import get_rho_from_u, plot_rho, calculate_optimal_costs
+from utils import get_rho_from_u, plot_rho
 
 
-def MFG(n_cell, n_action, T_terminal, u_max, episode, d):
+def MFG(n_cell, T_terminal, u_max, episode, d):
     u = 0.5 * np.ones((n_cell, n_cell * T_terminal), dtype=np.float64)
     rho = get_rho_from_u(u, d)
     u_hist = list()
-    # u_hist_dqn = list()
+    u_hist_dqn = list()
     # u_hist_a2c = list()
-    # u_hist_ddpg = list()
+    u_hist_ddpg = list()
     for loop in range(episode):
         print(loop)
-        u, V = value_iteration(rho, u_max, n_action)
-        # u_dqn, V_dqn = value_iteration_dqn(rho, u_max, n_action)
-        # u_a2c, V_a2c = value_iteration_a2c(rho, u_max, n_action)
-        # u_ddpg, V_ddpg = value_iteration_ddpg(rho, u_max, n_action)
+        u, V = value_iteration(rho, u_max)
+        u_dqn, V_dqn = value_iteration_dqn(rho, u_max)
+        u_ddpg, V_ddpg = value_iteration_ddpg(rho, u_max)
         print(u, V, '\n')
-        # print(u_dqn, V_dqn, '\n')
-        # print(u_a2c, V_a2c, '\n')
-        # print(u_ddpg, V_ddpg, '\n')
+        print(u_dqn, V_dqn, '\n')
+        print(u_ddpg, V_ddpg, '\n')
         u_hist.append(u)
-        # u_hist_dqn.append(u_dqn)
-        # u_hist_a2c.append(u_a2c)
-        # u_hist_ddpg.append(u_ddpg)
+        u_hist_dqn.append(u_dqn)
+        u_hist_ddpg.append(u_ddpg)
         u = np.array(u_hist).mean(axis=0)
-        # u_dqn = np.array(u_hist_dqn).mean(axis=0)
-        # u_a2c = np.array(u_hist_a2c).mean(axis=0)
-        # u_ddpg = np.array(u_hist_ddpg).mean(axis=0)
+        u_dqn = np.array(u_hist_dqn).mean(axis=0)
+        u_ddpg = np.array(u_hist_ddpg).mean(axis=0)
         rho = get_rho_from_u(u, d)
-        # rho_dqn = get_rho_from_u(u_dqn, d)
-        # rho_a2c = get_rho_from_u(u_a2c, d)
-        # rho_ddpg = get_rho_from_u(u_ddpg, d)
+        rho_dqn = get_rho_from_u(u_dqn, d)
+        rho_ddpg = get_rho_from_u(u_ddpg, d)
         plot_rho(n_cell, T_terminal, V[:-1, :-1], f"./fig/{loop}.png")
         plot_rho(n_cell, T_terminal, rho, f"./fig_rho/{loop}.png")
-        # plot_rho(n_cell, T_terminal, V_dqn[:-1, :-1], f"./fig/{loop}_dqn.png")
-        # plot_rho(n_cell, T_terminal, rho_dqn, f"./fig_rho/{loop}_dqn.png")
-        # plot_rho(n_cell, T_terminal, V_a2c[:-1, :-1], f"./fig/{loop}_a2c.png")
-        # plot_rho(n_cell, T_terminal, rho_a2c, f"./fig_rho/{loop}_a2c.png")
-        # plot_rho(n_cell, T_terminal, V_ddpg[:-1, :-1], f"./fig/{loop}_ddpg.png")
-        # plot_rho(n_cell, T_terminal, rho_ddpg, f"./fig_rho/{loop}_ddpg.png")
-
-    return calculate_optimal_costs(u, V)
+        plot_rho(n_cell, T_terminal, V_dqn[:-1, :-1], f"./fig/{loop}_dqn.png")
+        plot_rho(n_cell, T_terminal, rho_dqn, f"./fig_rho/{loop}_dqn.png")
+        plot_rho(n_cell, T_terminal, V_ddpg[:-1, :-1], f"./fig/{loop}_ddpg.png")
+        plot_rho(n_cell, T_terminal, rho_ddpg, f"./fig_rho/{loop}_ddpg.png")
 
 
 if __name__ == '__main__':
     n_cell = 16
     T_terminal = 1
     u_max = 1
-    episode = 50
+    episode = 10
 
     d = np.array([
         0.799965565466756,
@@ -72,4 +62,4 @@ if __name__ == '__main__':
         0.799608644838254,
         0.799965565466756,
     ])
-    MFG(n_cell, 1, T_terminal, u_max, episode, d)
+    MFG(n_cell, T_terminal, u_max, episode, d)
