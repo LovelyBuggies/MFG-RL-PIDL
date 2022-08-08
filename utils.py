@@ -28,10 +28,10 @@ def get_rho_from_u(u, d):
     for t in range(n_cell * T_terminal):
         for i in range(n_cell):
             if t == 0:
-                continue
+                rho[i, t] = d[i]
             else:
                 if i == 0:
-                    rho[i, t] = rho[i, t - 1] + d[t] - rho[i, t - 1] * u[i, t - 1]
+                    rho[i, t] = rho[i, t - 1] + rho[-1, t - 1] * u[-1, t - 1] - rho[i, t - 1] * u[i, t - 1]
                 else:
                     rho[i, t] = rho[i][t - 1] + rho[i - 1, t - 1] * u[i - 1, t - 1] - rho[i, t - 1] * u[i, t - 1]
 
