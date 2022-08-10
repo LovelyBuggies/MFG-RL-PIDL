@@ -32,7 +32,7 @@ if __name__ == '__main__':
     n_cell = 16
     T_terminal = 1
     u_max = 1
-    episode = 10
+    episode = 100
 
     d = np.array([
         0.799965565466756,
