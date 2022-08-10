@@ -30,9 +30,9 @@ def MFG(n_cell, T_terminal, u_max, episode, d):
 
 if __name__ == '__main__':
     n_cell = 16
-    T_terminal = 1
+    T_terminal = 4
     u_max = 1
-    episode = 100
+    episode = 50
 
     d = np.array([
         0.799965565466756,
@@ -50,6 +50,6 @@ if __name__ == '__main__':
         0.782162470168305,
         0.796856950383300,
         0.799608644838254,
-        0.799965565466756,
+        0.799965565466756
     ])
     MFG(n_cell, T_terminal, u_max, episode, d)
