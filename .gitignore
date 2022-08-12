@@ -7,4 +7,3 @@ fig_rho/*
 */.DS_Store
 data/*
 demand.csv
-critic.pt
