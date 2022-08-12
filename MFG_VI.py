@@ -66,14 +66,14 @@ def train_critic(n_cell, T_terminal):
         loss.backward()
         critic_optimizer.step()
 
-    pred_u = np.zeros((len(x_array), len(t_array)))
+    pred_V = np.zeros((len(x_array), len(t_array)))
     for i, x in enumerate(x_array):
         for j, t in enumerate(t_array):
-            pred_u[i, j] = critic(np.array([x, t]))
+            pred_V[i, j] = critic(np.array([x, t]))
 
     plot_rho(n_cell, T_terminal, V_array[:, :-1], None)
-    plot_rho(n_cell, T_terminal, pred_u[:, :-1], None)
-    torch.save(critic, "./critic.pt")
+    plot_rho(n_cell, T_terminal, pred_V[:, :-1], None)
+
     return critic
 
 
