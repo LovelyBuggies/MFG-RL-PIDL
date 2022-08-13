@@ -46,12 +46,20 @@ if __name__ == '__main__':
         0.39999
     ])
 
+    u = 0.5 * np.ones((n_cell, n_cell * T_terminal), dtype=np.float64)
+    u_hist = list()
+    for episode in range(5):
+        # data_rho = pd.read_csv('./csv/data_rho_non_sep.csv')
+        # rho = np.array(data_rho.iloc[:, 1:len(data_rho.iloc[0, :])])
+        # rho = train_rho(n_cell, T_terminal)
+        print(episode)
+        rho = get_rho_from_u(u, d)
+        critic = train_critic_fake(n_cell, T_terminal, value_iteration(n_cell, T_terminal, rho, fake=True)[1])
+        for ac_loop in range(3):
+            u, V_ddpg, actor = train_actor(n_cell, T_terminal, rho, critic)
+            plot_3d(n_cell, T_terminal, rho, f"./fig_rho/ddpg_{ac_loop}.png")
+            plot_3d(n_cell, T_terminal, u, f"./fig/ddpg_{ac_loop}.png")
+            critic = train_critic(n_cell, T_terminal, rho, actor, copy.deepcopy(critic))
 
-    data_rho = pd.read_csv('./csv/data_rho_non_sep.csv')
-    rho = np.array(data_rho.iloc[:, 1:len(data_rho.iloc[0, :])])
-    # rho = train_rho(n_cell, T_terminal)
-    critic = train_critic_fake(n_cell, T_terminal, value_iteration(n_cell, T_terminal, rho, fake=True)[1])
-    for episode in range(10):
-        u_ddpg, V_ddpg, actor = train_actor(n_cell, T_terminal, rho, critic)
-        plot_3d(n_cell, T_terminal, u_ddpg, f"./fig/ddpg_{episode}.png")
-        critic = train_critic(n_cell, T_terminal, rho, actor, copy.deepcopy(critic))
+        u_hist.append(u)
+        u = np.array(u_hist).mean(axis=0)
