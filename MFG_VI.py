@@ -3,7 +3,7 @@ import pandas as pd
 import copy
 
 from value_iteration import value_iteration
-from value_iteration_ddpg import train_actor, train_critic, train_critic_fake, train_rho
+from value_iteration_ddpg import train_ddpg, train_critic_fake, train_rho
 from utils import get_rho_from_u, plot_3d
 
 
@@ -48,18 +48,17 @@ if __name__ == '__main__':
 
     u = 0.5 * np.ones((n_cell, n_cell * T_terminal), dtype=np.float64)
     u_hist = list()
-    for episode in range(5):
-        # data_rho = pd.read_csv('./csv/data_rho_non_sep.csv')
-        # rho = np.array(data_rho.iloc[:, 1:len(data_rho.iloc[0, :])])
-        # rho = train_rho(n_cell, T_terminal)
+    rho = get_rho_from_u(u, d)
+    rho_network = train_rho(n_cell, T_terminal, rho)
+    critic = train_critic_fake(n_cell, T_terminal, value_iteration(n_cell, T_terminal, rho_network, fake=True)[1])
+    for episode in range(1000):
         print(episode)
-        rho = get_rho_from_u(u, d)
-        critic = train_critic_fake(n_cell, T_terminal, value_iteration(n_cell, T_terminal, rho, fake=True)[1])
-        for ac_loop in range(3):
-            u, V_ddpg, actor = train_actor(n_cell, T_terminal, rho, critic)
-            plot_3d(n_cell, T_terminal, rho, f"./fig_rho/ddpg_{ac_loop}.png")
-            plot_3d(n_cell, T_terminal, u, f"./fig/ddpg_{ac_loop}.png")
-            critic = train_critic(n_cell, T_terminal, rho, actor, copy.deepcopy(critic))
+        u, V_ddpg, actor, critic = train_ddpg(n_cell, T_terminal, rho_network, copy.deepcopy(critic))
+        if episode < 10 or episode % 10 == 0:
+            plot_3d(n_cell, T_terminal, rho, f"./fig_rho/ddpg_{episode}.png")
+            plot_3d(n_cell, T_terminal, u, f"./fig/ddpg_{episode}.png")
 
         u_hist.append(u)
         u = np.array(u_hist).mean(axis=0)
+        rho = get_rho_from_u(u, d)
+        rho_network = train_rho(n_cell, T_terminal, rho)
