@@ -37,7 +37,7 @@ def get_rho_from_u(u, d):
 
     return rho
 
-def plot_rho(n_cell, T_terminal, rho, fig_name):
+def plot_3d(n_cell, T_terminal, rho, fig_name):
     fig = plt.figure()
     ax = fig.gca(projection='3d')
     x = np.linspace(0, 1, n_cell)

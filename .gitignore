@@ -8,3 +8,5 @@ fig_rho/*
 data/*
 demand.csv
 critic.pt
+actor.pt
+csv/*
