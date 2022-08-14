@@ -98,8 +98,6 @@ class Actor(nn.Module):
 def train_ddpg(n_cell, T_terminal, rho_network, critic):
     delta_T = 1 / n_cell
     T = int(T_terminal / delta_T)
-    states = list()
-    rhos = list()
 
     actor = Actor(2)
     actor_optimizer = torch.optim.Adam(actor.parameters(), lr=1e-3)
@@ -107,18 +105,12 @@ def train_ddpg(n_cell, T_terminal, rho_network, critic):
     shuo = Critic(2)
     shuo_optimizer = torch.optim.Adam(shuo.parameters(), lr=1e-3)
 
-    states, truths = list(), list()
+    states, truths, rhos = list(), list(), list()
     for i in range(n_cell):
         for t in range(T):
             rho_i_t = float(rho_network(np.array([i, t]) / n_cell))
             states.append(np.array([i, t]) / n_cell)
             rhos.append(rho_i_t)
-            speed = float(actor.forward(np.array([i, t]) / n_cell))
-            if t < T - 1:
-                truths.append(delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + critic(
-                    np.array([i + speed, t + 1]) / n_cell))
-            else:
-                truths.append(delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed))
 
     states = np.array(states)
     rhos = torch.tensor(np.reshape(np.array(rhos), (n_cell * T, 1)))
@@ -135,7 +127,17 @@ def train_ddpg(n_cell, T_terminal, rho_network, critic):
         policy_loss.backward()
         actor_optimizer.step()
 
-        truths = torch.tensor(truths, requires_grad=True)
+    for i in range(n_cell):
+        for t in range(T):
+            rho_i_t = float(rho_network(np.array([i, t]) / n_cell))
+            speed = float(actor.forward(np.array([i, t]) / n_cell))
+            if t < T - 1:
+                truths.append(delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + critic(np.array([i + speed, t + 1]) / n_cell))
+            else:
+                truths.append(delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed))
+
+    truths = torch.tensor(truths, requires_grad=True)
+    for _ in range(1000):
         preds = torch.reshape(shuo(np.array(states)), (1, len(truths)))
         loss = (truths - preds).abs().mean()
         # print(loss)

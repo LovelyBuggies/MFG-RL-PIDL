@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
+import csv
 
 
 def calculate_optimal_costs(u, V):
@@ -51,3 +52,12 @@ def plot_3d(n_cell, T_terminal, rho, fig_name):
         plt.show()
     else:
         plt.savefig(fig_name)
+
+
+def array2csv(n_cell, T_terminal, array, file_name):
+    res = np.append([np.array(range(len(array))) / n_cell], array, axis=0)
+    column = np.append([np.array([0])], np.reshape(np.arange(len(array[0])) / n_cell, (len(array[0]), 1)), axis=0)
+    res = np.append(column, res, axis=1)
+    with open(file_name, "w+") as my_csv:
+        csvWriter = csv.writer(my_csv, delimiter=',')
+        csvWriter.writerows(res)

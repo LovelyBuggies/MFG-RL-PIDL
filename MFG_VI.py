@@ -1,10 +1,10 @@
 import numpy as np
-import pandas as pd
+import torch
 import copy
 
 from value_iteration import value_iteration
 from value_iteration_ddpg import train_ddpg, train_critic_fake, train_rho
-from utils import get_rho_from_u, plot_3d
+from utils import get_rho_from_u, plot_3d, array2csv
 
 
 
@@ -53,10 +53,20 @@ if __name__ == '__main__':
     critic = train_critic_fake(n_cell, T_terminal, value_iteration(n_cell, T_terminal, rho_network, fake=True)[1])
     for episode in range(1000):
         print(episode)
-        u, V_ddpg, actor, critic = train_ddpg(n_cell, T_terminal, rho_network, copy.deepcopy(critic))
+        u, V, actor, critic = train_ddpg(n_cell, T_terminal, rho_network, copy.deepcopy(critic))
         if episode < 10 or episode % 10 == 0:
-            plot_3d(n_cell, T_terminal, rho, f"./fig_rho/ddpg_{episode}.png")
-            plot_3d(n_cell, T_terminal, u, f"./fig/ddpg_{episode}.png")
+            array2csv(n_cell, T_terminal, u, f"./csv/u/{episode}.csv")
+            array2csv(n_cell, T_terminal, V, f"./csv/V/{episode}.csv")
+            array2csv(n_cell, T_terminal, rho, f"./csv/rho/{episode}.csv")
+
+            plot_3d(n_cell, T_terminal, u, f"./fig/u/{episode}.pdf")
+            plot_3d(n_cell, T_terminal, V[:-1, :-1], f"./fig/V/{episode}.pdf")
+            plot_3d(n_cell, T_terminal, rho, f"./fig/rho/{episode}.pdf")
+
+        if episode < 10 or episode % 50 == 0:
+            torch.save(actor, f"./model/actor/{episode}.pt")
+            torch.save(critic, f"./model/critic/{episode}.pt")
+            torch.save(rho_network, f"./model/rho_network/{episode}.pt")
 
         u_hist.append(u)
         u = np.array(u_hist).mean(axis=0)
