@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
+import csv
 
 
 def calculate_optimal_costs(u, V):
@@ -28,16 +29,16 @@ def get_rho_from_u(u, d):
     for t in range(n_cell * T_terminal):
         for i in range(n_cell):
             if t == 0:
-                continue
+                rho[i, t] = d[i]
             else:
                 if i == 0:
-                    rho[i, t] = rho[i, t - 1] + d[t] - rho[i, t - 1] * u[i, t - 1]
+                    rho[i, t] = rho[i, t - 1] + rho[-1, t - 1] * u[-1, t - 1] - rho[i, t - 1] * u[i, t - 1]
                 else:
                     rho[i, t] = rho[i][t - 1] + rho[i - 1, t - 1] * u[i - 1, t - 1] - rho[i, t - 1] * u[i, t - 1]
 
     return rho
 
-def plot_rho(n_cell, T_terminal, rho, fig_name):
+def plot_3d(n_cell, T_terminal, rho, fig_name):
     fig = plt.figure()
     ax = fig.gca(projection='3d')
     x = np.linspace(0, 1, n_cell)
@@ -51,3 +52,12 @@ def plot_rho(n_cell, T_terminal, rho, fig_name):
         plt.show()
     else:
         plt.savefig(fig_name)
+
+
+def array2csv(n_cell, T_terminal, array, file_name):
+    res = np.append([np.array(range(len(array))) / n_cell], array, axis=0)
+    column = np.append([np.array([0])], np.reshape(np.arange(len(array[0])) / n_cell, (len(array[0]), 1)), axis=0)
+    res = np.append(column, res, axis=1)
+    with open(file_name, "w+") as my_csv:
+        csvWriter = csv.writer(my_csv, delimiter=',')
+        csvWriter.writerows(res)
