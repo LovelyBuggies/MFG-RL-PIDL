@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import copy
 
-from value_iteration import value_iteration
+from value_iteration import value_iteration_ring_road
 from value_iteration_ddpg import train_ddpg, train_critic_fake, train_rho
 from utils import get_rho_from_u, plot_3d, array2csv
 
@@ -50,7 +50,7 @@ if __name__ == '__main__':
     u_hist = list()
     rho = get_rho_from_u(u, d)
     rho_network = train_rho(n_cell, T_terminal, rho)
-    critic = train_critic_fake(n_cell, T_terminal, value_iteration(n_cell, T_terminal, rho_network, fake=True)[1])
+    critic = train_critic_fake(n_cell, T_terminal, value_iteration_ring_road(n_cell, T_terminal, rho_network, fake=True)[1])
     for episode in range(1000):
         print(episode)
         u, V, actor, critic = train_ddpg(n_cell, T_terminal, rho_network, copy.deepcopy(critic))

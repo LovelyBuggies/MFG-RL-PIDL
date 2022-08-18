@@ -5,23 +5,6 @@ from matplotlib.ticker import LinearLocator, FormatStrFormatter
 import csv
 
 
-def calculate_optimal_costs(u, V):
-    n_cell = len(u)
-    T_terminal = int(len(u[0]) / n_cell)
-    curr_i, curr_t = 0, 0
-    costs = V[0, 0]
-    while curr_i < n_cell - 1:
-        if curr_t > T_terminal:
-            return float('inf')
-
-        curr_i += int(u[curr_i, curr_t])
-        curr_t += 1
-        costs += V[curr_i, curr_t]
-
-    return costs
-
-
-
 def get_rho_from_u(u, d):
     n_cell = u.shape[0]
     T_terminal = int(u.shape[1] / u.shape[0])
@@ -38,6 +21,33 @@ def get_rho_from_u(u, d):
 
     return rho
 
+
+def network_loading(model, u, beta, demand, n_cell, T):
+    rho = np.zeros((model.n_edge, n_cell, T))
+    for l in range(model.n_edge):
+        for t in range(1, T):
+            for i in range(n_cell):
+                if t == 0:
+                    rho[l, i, t] == 0
+                else:
+                    if i >= 1:
+                        rho[l, i, t] = rho[l, i, t - 1] + rho[l, i - 1, t - 1] * u[l, i - 1, t - 1] - rho[l, i, t - 1] * u[l, i, t - 1]
+                    else:
+                        q_in = 0
+                        start_node = model.edges[l, 0]
+                        if start_node == model.origin:
+                            q_in = demand[t - 1]
+                        else:
+                            for in_node in range(model.n_node):
+                                k = model.adjacency[in_node, start_node]
+                                if k > -1:
+                                    q_in += rho[k, n_cell - 1, t - 1] * u[k, n_cell - 1, t - 1]
+
+                        rho[l, 0, t] = rho[l, 0, t - 1] + beta[l, t - 1] * q_in - rho[l, 0, t - 1] * u[l, 0, t - 1]
+
+    return rho
+
+
 def plot_3d(n_cell, T_terminal, rho, fig_name):
     fig = plt.figure()
     ax = fig.gca(projection='3d')
@@ -45,6 +55,26 @@ def plot_3d(n_cell, T_terminal, rho, fig_name):
     t = np.linspace(0, T_terminal, n_cell * T_terminal)
     t_mesh, x_mesh = np.meshgrid(t, x)
     surf = ax.plot_surface(x_mesh, t_mesh, rho, cmap=cm.jet, linewidth=0, antialiased=False)
+    ax.zaxis.set_major_locator(LinearLocator(10))
+    ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+    plt.xlim(max(x), min(x))
+    if not fig_name:
+        plt.show()
+    else:
+        plt.savefig(fig_name)
+
+
+def plot_4d(n_cell, T_terminal, rho, concat, fig_name):
+    rho_new = rho[concat[0], :, :]
+    for i in range(1, len(concat)):
+        rho_new = np.append(rho_new, rho[concat[i], :, :], axis=0)
+
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+    x = np.linspace(0, len(concat), len(concat) * n_cell)
+    t = np.linspace(0, T_terminal, n_cell * T_terminal)
+    t_mesh, x_mesh = np.meshgrid(t, x)
+    surf = ax.plot_surface(x_mesh, t_mesh, rho_new, cmap=cm.jet, linewidth=0, antialiased=False)
     ax.zaxis.set_major_locator(LinearLocator(10))
     ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
     plt.xlim(max(x), min(x))
