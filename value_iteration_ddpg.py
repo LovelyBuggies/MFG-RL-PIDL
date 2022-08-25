@@ -24,6 +24,8 @@ class Critic(nn.Module):
 
     def forward(self, x):
         x = self.model(torch.from_numpy(x).float())
+        x = torch.tanh(x)
+        x = x / 2
         return x
 
 
@@ -44,6 +46,8 @@ class Actor(nn.Module):
 
     def forward(self, x):
         x = self.model(torch.from_numpy(x).float())
+        x = torch.tanh(x)
+        x = (x + 1) / 2
         return x
 
 
@@ -85,6 +89,7 @@ def train_ddpg(rho, d, iterations):
     V = np.ones((n_cell + 1, T + 1))
     states = list()
     rhos = list()
+    rho_hist = list()
 
     actor = Actor(2)
     actor_optimizer = torch.optim.Adam(actor.parameters(), lr=1e-3)
@@ -139,11 +144,14 @@ def train_ddpg(rho, d, iterations):
 
         # train actor
         speeds = actor.forward(states)
-        next_xs = np.reshape(states[:, 0], (n_cell * T, 1)) + speeds.detach().numpy()
+        next_xs_1 = np.reshape(states[:, 0], (n_cell * T, 1))
+        next_xs_2 = np.reshape(states[:, 0], (n_cell * T, 1)) + np.ones((n_cell * T, 1))
         next_ts = np.reshape(states[:, 1], (n_cell * T, 1)) + np.ones((n_cell * T, 1))
-        next_states = np.append(next_xs, next_ts, axis=1)
-        advantages = delta_T * (0.5 * speeds ** 2 + rhos * speeds - speeds) + critic.forward(next_states) - critic(
-            states)
+        next_states_1 = np.append(next_xs_1, next_ts, axis=1)
+        next_states_2 = np.append(next_xs_2, next_ts, axis=1)
+        advantages = delta_T * (0.5 * speeds ** 2 + rhos * speeds - speeds) + (
+                    torch.ones((n_cell * T, 1)) - speeds) * critic.forward(next_states_1) + speeds * critic.forward(
+            next_states_2) - critic(states)
         policy_loss = advantages.mean()
         if a_it % 5 == 0:
             print(f"{a_it, c_it} policy loss", float(policy_loss))
@@ -152,19 +160,16 @@ def train_ddpg(rho, d, iterations):
         policy_loss.backward()
         actor_optimizer.step()
 
-        if a_it % 50 == 0:
-            u_new = np.zeros((n_cell, T))
-            V_new = np.zeros((n_cell + 1, T + 1), dtype=np.float64)
-            for i in range(n_cell + 1):
-                for t in range(T + 1):
-                    if i < n_cell and t < T:
-                        u_new[i, t] = actor(np.array([i, t]))
+        u_new = np.zeros((n_cell, T))
+        V_new = np.zeros((n_cell + 1, T + 1), dtype=np.float64)
+        for i in range(n_cell + 1):
+            for t in range(T + 1):
+                if i < n_cell and t < T:
+                    u_new[i, t] = actor(np.array([i, t]))
 
-                    V_new[i, t] = V[i, t]
+                V_new[i, t] = V[i, t]
 
-            rho = get_rho_from_u(u_new, d)
+        rho_hist.append(get_rho_from_u(u_new, d))
+        if a_it % 50 == 0 and a_it != 0:
             plot_3d(32, 1, u_new, f"./fig/u/{a_it}-{c_it}.png")
-            plot_3d(32, 1, rho,  f"./fig/rho/{a_it}-{c_it}.png")
-
-
-
+            plot_3d(32, 1, np.array(rho_hist[:-20]).mean(axis=0),  f"./fig/rho/{a_it}-{c_it}.png")
