@@ -133,7 +133,8 @@ def train_ddpg(rho, d, iterations):
             for c_it in range(5000):
                 preds = torch.reshape(critic(np.array(keys)), (1, len(truths)))
                 critic_loss = (truths - preds).abs().mean()
-                print(f"{a_it, c_it} critic loss", float(critic_loss))
+                if c_it % 100 == 0:
+                    print(f"{c_it} critic loss", float(critic_loss))
                 critic_optimizer.zero_grad()
                 critic_loss.backward()
                 critic_optimizer.step()
@@ -144,17 +145,20 @@ def train_ddpg(rho, d, iterations):
 
         # train actor
         speeds = actor.forward(states)
-        next_xs_1 = np.reshape(states[:, 0], (n_cell * T, 1))
-        next_xs_2 = np.reshape(states[:, 0], (n_cell * T, 1)) + np.ones((n_cell * T, 1))
+        # next_xs_1 = np.reshape(states[:, 0], (n_cell * T, 1))
+        # next_xs_2 = np.reshape(states[:, 0], (n_cell * T, 1)) + np.ones((n_cell * T, 1))
+        next_xs = torch.reshape(torch.tensor(states[:, 0]), (n_cell * T, 1)) + speeds.detach().numpy()
         next_ts = np.reshape(states[:, 1], (n_cell * T, 1)) + np.ones((n_cell * T, 1))
-        next_states_1 = np.append(next_xs_1, next_ts, axis=1)
-        next_states_2 = np.append(next_xs_2, next_ts, axis=1)
-        advantages = delta_T * (0.5 * speeds ** 2 + rhos * speeds - speeds) + (
-                    torch.ones((n_cell * T, 1)) - speeds) * critic.forward(next_states_1) + speeds * critic.forward(
-            next_states_2) - critic(states)
+        # next_states_1 = np.append(next_xs_1, next_ts, axis=1)
+        # next_states_2 = np.append(next_xs_2, next_ts, axis=1)
+        next_states = np.append(next_xs, next_ts, axis=1)
+        # interp_V_next_state = (torch.ones((n_cell * T, 1)) - speeds) * critic.forward(
+        #     next_states_1) + speeds * critic.forward(next_states_2)
+        advantages = delta_T * (0.5 * speeds ** 2 + rhos * speeds - speeds) + critic.forward(next_states) - critic(states)
         policy_loss = advantages.mean()
         if a_it % 5 == 0:
-            print(f"{a_it, c_it} policy loss", float(policy_loss))
+            # print(max(critic.forward(next_states) - interp_V_next_state))
+            print(f"{a_it} policy loss", float(policy_loss))
 
         actor_optimizer.zero_grad()
         policy_loss.backward()
@@ -171,5 +175,5 @@ def train_ddpg(rho, d, iterations):
 
         rho_hist.append(get_rho_from_u(u_new, d))
         if a_it % 50 == 0 and a_it != 0:
-            plot_3d(32, 1, u_new, f"./fig/u/{a_it}-{c_it}.png")
-            plot_3d(32, 1, np.array(rho_hist[:-20]).mean(axis=0),  f"./fig/rho/{a_it}-{c_it}.png")
+            plot_3d(32, 1, u_new, f"./fig/u/{a_it}.png")
+            plot_3d(32, 1, np.array(rho_hist[:-20]).mean(axis=0),  f"./fig/rho/{a_it}.png")

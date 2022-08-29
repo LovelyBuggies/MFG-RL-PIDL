@@ -14,4 +14,4 @@ if __name__ == '__main__':
     rho = data.iloc[:, 1:len(data.iloc[0, :])]
     d = np.array(data['0.1'])
     rho = np.array(rho)
-    train_ddpg(rho, d, 3000)
+    train_ddpg(rho, d, 5000)
