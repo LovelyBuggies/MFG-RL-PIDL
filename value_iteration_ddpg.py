@@ -145,15 +145,15 @@ def train_ddpg(rho, d, iterations):
 
         # train actor
         speeds = actor.forward(states)
-        # next_xs_1 = np.reshape(states[:, 0], (n_cell * T, 1))
-        # next_xs_2 = np.reshape(states[:, 0], (n_cell * T, 1)) + np.ones((n_cell * T, 1))
+        next_xs_1 = np.reshape(states[:, 0], (n_cell * T, 1))
+        next_xs_2 = np.reshape(states[:, 0], (n_cell * T, 1)) + np.ones((n_cell * T, 1))
         next_xs = torch.reshape(torch.tensor(states[:, 0]), (n_cell * T, 1)) + speeds.detach().numpy()
         next_ts = np.reshape(states[:, 1], (n_cell * T, 1)) + np.ones((n_cell * T, 1))
-        # next_states_1 = np.append(next_xs_1, next_ts, axis=1)
-        # next_states_2 = np.append(next_xs_2, next_ts, axis=1)
+        next_states_1 = np.append(next_xs_1, next_ts, axis=1)
+        next_states_2 = np.append(next_xs_2, next_ts, axis=1)
         next_states = np.append(next_xs, next_ts, axis=1)
-        # interp_V_next_state = (torch.ones((n_cell * T, 1)) - speeds) * critic.forward(
-        #     next_states_1) + speeds * critic.forward(next_states_2)
+        interp_V_next_state = (torch.ones((n_cell * T, 1)) - speeds) * critic.forward(
+            next_states_1) + speeds * critic.forward(next_states_2)
         advantages = delta_T * (0.5 * speeds ** 2 + rhos * speeds - speeds) + critic.forward(next_states) - critic(states)
         policy_loss = advantages.mean()
         if a_it % 5 == 0:
