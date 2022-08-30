@@ -86,7 +86,6 @@ def train_ddpg(rho, d, iterations):
     T_terminal = int(rho.shape[1] / rho.shape[0])
     delta_T = 1 / n_cell
     T = int(T_terminal / delta_T)
-    V = np.ones((n_cell + 1, T + 1))
     states = list()
     rhos = list()
     rho_hist = list()
@@ -118,10 +117,10 @@ def train_ddpg(rho, d, iterations):
                     speed = float(actor.forward(np.array([i, t])))
                     if t != T:
                         if i != n_cell:
-                            truths.append(delta_T * 0.5 * (1 - rho[i, t] - speed) ** 2 + fake_critic(
+                            truths.append(delta_T * (0.5 * speed ** 2 + rho[i, t] * speed - speed) + fake_critic(
                                 np.array([i + speed, t + 1])))
                         else:
-                            truths.append(delta_T * 0.5 * (1 - rho[0, t] - speed) ** 2 + fake_critic(
+                            truths.append(delta_T * (0.5 * speed ** 2 + rho[0, t] * speed - speed) + fake_critic(
                                 np.array([speed, t + 1])))
                     else:
                         truths.append(0)
@@ -151,7 +150,7 @@ def train_ddpg(rho, d, iterations):
         next_states = np.append(next_xs, next_ts, axis=1)
         interp_V_next_state = (torch.ones((n_cell * T, 1)) - speeds) * critic.forward(
             next_states_1) + speeds * critic.forward(next_states_2)
-        advantages = delta_T * 0.5 * (1 - rhos - speeds) ** 2 + critic.forward(next_states) - critic(states)
+        advantages = advantages = delta_T * (0.5 * speeds ** 2 + rhos * speeds - speeds) + interp_V_next_state - critic(states)
         policy_loss = advantages.mean()
         if a_it % 5 == 0:
             # print(max(critic.forward(next_states) - interp_V_next_state))
@@ -168,7 +167,7 @@ def train_ddpg(rho, d, iterations):
                 if i < n_cell and t < T:
                     u_new[i, t] = actor(np.array([i, t]))
 
-                V_new[i, t] = V[i, t]
+                V_new[i, t] = critic(np.array([i, t]))
 
         rho_hist.append(get_rho_from_u(u_new, d))
         if a_it % 50 == 0 and a_it != 0:
