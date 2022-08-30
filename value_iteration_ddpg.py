@@ -118,16 +118,13 @@ def train_ddpg(rho, d, iterations):
                     speed = float(actor.forward(np.array([i, t])))
                     if t != T:
                         if i != n_cell:
-                            truths.append(delta_T * (0.5 * speed ** 2 + rho[i, t] * speed - speed) + fake_critic(
-                            np.array([i + speed, t + 1])))
+                            truths.append(delta_T * 0.5 * (1 - rho[i, t] - speed) ** 2 + fake_critic(
+                                np.array([i + speed, t + 1])))
                         else:
-                            truths.append(delta_T * (0.5 * speed ** 2 + rho[0, t] * speed - speed) + fake_critic(
+                            truths.append(delta_T * 0.5 * (1 - rho[0, t] - speed) ** 2 + fake_critic(
                                 np.array([speed, t + 1])))
                     else:
-                        if i != n_cell:
-                            truths.append(delta_T * (0.5 * speed ** 2 + rho[i, t - 1] * speed - speed))
-                        else:
-                            truths.append(delta_T * (0.5 * speed ** 2 + rho[0, t - 1] * speed - speed))
+                        truths.append(0)
 
             truths = torch.tensor(truths, requires_grad=True)
             for c_it in range(5000):
@@ -154,7 +151,7 @@ def train_ddpg(rho, d, iterations):
         next_states = np.append(next_xs, next_ts, axis=1)
         interp_V_next_state = (torch.ones((n_cell * T, 1)) - speeds) * critic.forward(
             next_states_1) + speeds * critic.forward(next_states_2)
-        advantages = delta_T * (0.5 * speeds ** 2 + rhos * speeds - speeds) + critic.forward(next_states) - critic(states)
+        advantages = delta_T * 0.5 * (1 - rhos - speeds) ** 2 + critic.forward(next_states) - critic(states)
         policy_loss = advantages.mean()
         if a_it % 5 == 0:
             # print(max(critic.forward(next_states) - interp_V_next_state))
@@ -176,4 +173,4 @@ def train_ddpg(rho, d, iterations):
         rho_hist.append(get_rho_from_u(u_new, d))
         if a_it % 50 == 0 and a_it != 0:
             plot_3d(32, 1, u_new, f"./fig/u/{a_it}.png")
-            plot_3d(32, 1, np.array(rho_hist[:-20]).mean(axis=0),  f"./fig/rho/{a_it}.png")
+            plot_3d(32, 1, np.array(rho_hist[:-1]).mean(axis=0),  f"./fig/rho/{a_it}.png")

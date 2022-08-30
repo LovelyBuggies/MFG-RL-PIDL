@@ -10,7 +10,7 @@ from utils import get_rho_from_u, plot_3d
 
 
 if __name__ == '__main__':
-    data = pd.read_csv('data_rho_non_sep.csv')
+    data = pd.read_csv('data_rho_lwr_new.csv')
     rho = data.iloc[:, 1:len(data.iloc[0, :])]
     d = np.array(data['0.1'])
     rho = np.array(rho)

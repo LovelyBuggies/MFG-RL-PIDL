@@ -11,9 +11,9 @@ def value_iteration(n_cell, T_terminal, rho, fake=False):
         for i in range(n_cell):
             for t in range(T):
                 rho_i_t = rho[i, t]
-                u[i, t] = (V[i, t + 1] - V[i + 1, t + 1]) / delta_T + 1 - rho_i_t
+                u[i, t] = 1 - rho_i_t
                 u[i, t] = 0.5 if fake else min(max(u[i, t], 0), 1)
-                V[i, t] = delta_T * (0.5 * u[i, t] ** 2 + rho_i_t * u[i, t] - u[i, t]) + (1 - u[i, t]) * V[i, t + 1] + u[i, t] * V[i + 1, t + 1]
+                V[i, t] = delta_T * 0.5 * (1 - u[i, t] - rho_i_t) ** 2 + (1 - u[i, t]) * V[i, t + 1] + u[i, t] * V[i + 1, t + 1]
 
         V[-1, :] = V[0, :].copy()
 
