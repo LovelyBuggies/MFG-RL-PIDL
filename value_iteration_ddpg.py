@@ -150,7 +150,7 @@ def train_ddpg(rho, d, iterations):
         next_states = np.append(next_xs, next_ts, axis=1)
         interp_V_next_state = (torch.ones((n_cell * T, 1)) - speeds) * critic.forward(
             next_states_1) + speeds * critic.forward(next_states_2)
-        advantages = advantages = delta_T * (0.5 * speeds ** 2 + rhos * speeds - speeds) + interp_V_next_state - critic(states)
+        advantages = delta_T * (0.5 * speeds ** 2 + rhos * speeds - speeds) + interp_V_next_state - critic(states)
         policy_loss = advantages.mean()
         if a_it % 5 == 0:
             # print(max(critic.forward(next_states) - interp_V_next_state))
