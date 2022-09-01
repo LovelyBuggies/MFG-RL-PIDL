@@ -9,7 +9,7 @@ from utils import get_rho_from_u, plot_3d
 
 class Critic(nn.Module):
     def __init__(self, state_dim):
-        super().__init__()
+        super(Critic, self).__init__()
         self.model = nn.Sequential(
             nn.Linear(state_dim, 64),
             nn.ReLU(),
@@ -31,7 +31,7 @@ class Critic(nn.Module):
 
 class Actor(nn.Module):
     def __init__(self, state_dim):
-        super().__init__()
+        super(Actor, self).__init__()
         self.model = nn.Sequential(
             nn.Linear(state_dim, 64),
             nn.ReLU(),
@@ -46,6 +46,12 @@ class Actor(nn.Module):
 
     def forward(self, x):
         x = self.model(torch.from_numpy(x).float())
+        x = torch.tanh(x)
+        x = (x + 1) / 2
+        return x
+
+    def f(self, x):
+        x = self.model(x)
         x = torch.tanh(x)
         x = (x + 1) / 2
         return x
@@ -117,10 +123,10 @@ def train_ddpg(rho, d, iterations):
                     speed = float(actor.forward(np.array([i, t])))
                     if t != T:
                         if i != n_cell:
-                            truths.append(delta_T * (0.5 * speed ** 2 + rho[i, t] * speed - speed) + fake_critic(
+                            truths.append(delta_T * 0.5 * (1 - rho[i, t] - speed) ** 2 + fake_critic(
                                 np.array([i + speed, t + 1])))
                         else:
-                            truths.append(delta_T * (0.5 * speed ** 2 + rho[0, t] * speed - speed) + fake_critic(
+                            truths.append(delta_T * 0.5 * (1 - rho[0, t] - speed) ** 2 + fake_critic(
                                 np.array([speed, t + 1])))
                     else:
                         truths.append(0)
@@ -150,7 +156,7 @@ def train_ddpg(rho, d, iterations):
         next_states = np.append(next_xs, next_ts, axis=1)
         interp_V_next_state = (torch.ones((n_cell * T, 1)) - speeds) * critic.forward(
             next_states_1) + speeds * critic.forward(next_states_2)
-        advantages = delta_T * (0.5 * speeds ** 2 + rhos * speeds - speeds) + interp_V_next_state - critic(states)
+        advantages = delta_T * 0.5 * (1 - rhos - speeds) ** 2 + interp_V_next_state - critic(states)
         policy_loss = advantages.mean()
         if a_it % 5 == 0:
             # print(max(critic.forward(next_states) - interp_V_next_state))
@@ -173,3 +179,5 @@ def train_ddpg(rho, d, iterations):
         if a_it % 50 == 0 and a_it != 0:
             plot_3d(32, 1, u_new, f"./fig/u/{a_it}.png")
             plot_3d(32, 1, np.array(rho_hist[:-1]).mean(axis=0),  f"./fig/rho/{a_it}.png")
+
+    return actor
