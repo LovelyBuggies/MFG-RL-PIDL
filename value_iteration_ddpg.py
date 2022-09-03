@@ -68,7 +68,7 @@ def train_critic_fake(n_cell, T_terminal, V_array):
     for i in range(n_cell + 1):
         for t in range(T + 1):
             truths.append(V_array[i, t])
-            keys.append(np.array([i, t]))
+            keys.append(np.array([i, t]) / n_cell)
 
     for _ in range(1000):
         truths = torch.tensor(truths, requires_grad=True)
@@ -82,7 +82,7 @@ def train_critic_fake(n_cell, T_terminal, V_array):
     pred_V = np.zeros((n_cell + 1, T + 1))
     for i in range(n_cell + 1):
         for t in range(T + 1):
-            pred_V[i, t] = liu(np.array([i, t]))
+            pred_V[i, t] = liu(np.array([i, t]) / n_cell)
 
     return liu
 
@@ -106,7 +106,7 @@ def train_ddpg(rho, d, iterations):
     # use value iteration to get the expected V table
     for i in range(n_cell):
         for t in range(T):
-            states.append([i, t])
+            states.append([i / n_cell, t / n_cell])
             rhos.append(rho[i, t])
 
     states = np.array(states)
@@ -119,15 +119,15 @@ def train_ddpg(rho, d, iterations):
             truths = list()
             for i in range(n_cell + 1):
                 for t in range(T + 1):
-                    keys.append([i, t])
-                    speed = float(actor.forward(np.array([i, t])))
+                    keys.append([i / n_cell, t / n_cell])
+                    speed = float(actor.forward(np.array([i, t]) / n_cell))
                     if t != T:
                         if i != n_cell:
                             truths.append(delta_T * 0.5 * (1 - rho[i, t] - speed) ** 2 + fake_critic(
-                                np.array([i + speed, t + 1])))
+                                np.array([i + speed, t + 1]) / n_cell))
                         else:
                             truths.append(delta_T * 0.5 * (1 - rho[0, t] - speed) ** 2 + fake_critic(
-                                np.array([speed, t + 1])))
+                                np.array([speed, t + 1]) / n_cell))
                     else:
                         truths.append(0)
 
@@ -148,9 +148,9 @@ def train_ddpg(rho, d, iterations):
         # train actor
         speeds = actor.forward(states)
         next_xs_1 = np.reshape(states[:, 0], (n_cell * T, 1))
-        next_xs_2 = np.reshape(states[:, 0], (n_cell * T, 1)) + np.ones((n_cell * T, 1))
-        next_xs = torch.reshape(torch.tensor(states[:, 0]), (n_cell * T, 1)) + speeds.detach().numpy()
-        next_ts = np.reshape(states[:, 1], (n_cell * T, 1)) + np.ones((n_cell * T, 1))
+        next_xs_2 = np.reshape(states[:, 0], (n_cell * T, 1)) + np.ones((n_cell * T, 1)) / n_cell
+        next_xs = torch.reshape(torch.tensor(states[:, 0]), (n_cell * T, 1)) + speeds.detach().numpy() / n_cell
+        next_ts = np.reshape(states[:, 1], (n_cell * T, 1)) + np.ones((n_cell * T, 1)) / n_cell
         next_states_1 = np.append(next_xs_1, next_ts, axis=1)
         next_states_2 = np.append(next_xs_2, next_ts, axis=1)
         next_states = np.append(next_xs, next_ts, axis=1)
@@ -171,9 +171,9 @@ def train_ddpg(rho, d, iterations):
         for i in range(n_cell + 1):
             for t in range(T + 1):
                 if i < n_cell and t < T:
-                    u_new[i, t] = actor(np.array([i, t]))
+                    u_new[i, t] = actor(np.array([i, t]) / n_cell)
 
-                V_new[i, t] = critic(np.array([i, t]))
+                V_new[i, t] = critic(np.array([i, t]) / n_cell)
 
         rho_hist.append(get_rho_from_u(u_new, d))
         if a_it % 50 == 0 and a_it != 0:

@@ -36,15 +36,26 @@ if __name__ == '__main__':
     d = np.array(data['0.1'])
     rho = np.array(rho)
     for _ in range(1):
-        actor = train_ddpg(rho, d, 1)
+        actor = train_ddpg(rho, d, 5000)
         torch.save(actor.state_dict(), f"./u_model/actor.pt")
         model = get_rho_network("./u_model/actor.pt")
         pidl = np.zeros((32, 32))
         for i in range(32):
             for t in range(32):
-                pidl[i, t] = model(np.array([i, t] / 32))
+                a = torch.tensor([i / 32]).float().to(model.device)
+                b = torch.tensor([t / 32]).float().to(model.device)
+                a = torch.unsqueeze(a, dim=-1)
+                b = torch.unsqueeze(b, dim=-1)
+                pidl[i, t] = float(model.f(torch.cat((a, b), 1))[:, 0])
 
 
         plot_3d(32, 1, pidl, "pidl.png")
+
+
+
+    # rho_network = pidl(random actor)
+    # for i in 10000:
+    #     actor = train_ddpg(rho_network, iterations)
+    #     rho_network = pidl(actor)
 
 

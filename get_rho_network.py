@@ -196,7 +196,7 @@ def get_rho_network(u_network_path):
         # optimizer = torch.optim.LBFGS([p for p in model.parameters() if p.requires_grad == True],
         #                               history_size = 10000,
         #                               max_iter=1000)
-        optimizer.param_groups[0]['capturable'] = True
+        # optimizer.param_groups[0]['capturable'] = True
 
     if args.mode == "train":
         training(model, optimizer, data_loader, device,
