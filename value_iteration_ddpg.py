@@ -87,7 +87,7 @@ def train_critic_fake(n_cell, T_terminal, V_array):
     return liu
 
 
-def train_ddpg(rho, d, iterations):
+def train_ddpg(rho, d, iterative_RL, iterations):
     n_cell = rho.shape[0]
     T_terminal = int(rho.shape[1] / rho.shape[0])
     delta_T = 1 / n_cell
@@ -176,8 +176,8 @@ def train_ddpg(rho, d, iterations):
                 V_new[i, t] = critic(np.array([i, t]) / n_cell)
 
         rho_hist.append(get_rho_from_u(u_new, d))
-        if a_it % 50 == 0 and a_it != 0:
-            plot_3d(32, 1, u_new, f"./fig/u/{a_it}.png")
-            plot_3d(32, 1, np.array(rho_hist[:-1]).mean(axis=0),  f"./fig/rho/{a_it}.png")
+        if a_it % 200 == 0 and a_it != 0:
+            plot_3d(32, 1, u_new, f"./fig/u/{iterative_RL}_{a_it}.png")
+            plot_3d(32, 1, np.array(rho_hist[:-1]).mean(axis=0),  f"./fig/rho/{iterative_RL}_{a_it}.png")
 
-    return actor
+    return u_new
