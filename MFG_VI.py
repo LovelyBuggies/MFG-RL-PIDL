@@ -34,7 +34,6 @@ if __name__ == '__main__':
     T_terminal = 1
     T = n_cell * T_terminal
     u = 0.5 * np.ones((n_cell, T))
-    u_hist = list()
     d = np.array([
         0.39999,
         0.39998,
@@ -70,10 +69,6 @@ if __name__ == '__main__':
         0.39999
     ])
     rho = get_rho_from_u(u, d)
-    for i in range(50):
-        u = train_ddpg(rho, d, i, 2001)
-        u_hist.append(u)
-        u = np.array(u_hist).mean(axis=0)
-        rho = get_rho_from_u(u, d)
+    u = train_ddpg(rho, d, 100000)
 
 

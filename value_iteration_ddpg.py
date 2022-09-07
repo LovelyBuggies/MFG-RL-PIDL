@@ -87,32 +87,33 @@ def train_critic_fake(n_cell, T_terminal, V_array):
     return liu
 
 
-def train_ddpg(rho, d, iterative_RL, iterations):
+def train_ddpg(rho, d, iterations):
     n_cell = rho.shape[0]
     T_terminal = int(rho.shape[1] / rho.shape[0])
     delta_T = 1 / n_cell
     T = int(T_terminal / delta_T)
-    states = list()
-    rhos = list()
+    u_hist = list()
     rho_hist = list()
 
     actor = Actor(2)
     actor_optimizer = torch.optim.Adam(actor.parameters(), lr=1e-3)
 
-    fake_critic = train_critic_fake(n_cell, T_terminal, value_iteration(n_cell, T_terminal, rho, fake=True)[1])
+    fake_critic = train_critic_fake(n_cell, T_terminal, np.zeros((n_cell + 1, T + 1)))
     critic = Critic(2)
     critic_optimizer = torch.optim.Adam(critic.parameters(), lr=1e-3)
 
-    # use value iteration to get the expected V table
-    for i in range(n_cell):
-        for t in range(T):
-            states.append([i / n_cell, t / n_cell])
-            rhos.append(rho[i, t])
-
-    states = np.array(states)
-    rhos = torch.tensor(np.reshape(np.array(rhos), (n_cell * T, 1)))
-
     for a_it in range(iterations):
+        # give current rhos to calculate advantage
+        states = list()
+        rhos = list()
+        for i in range(n_cell):
+            for t in range(T):
+                states.append([i / n_cell, t / n_cell])
+                rhos.append(rho[i, t])
+
+        states = np.array(states)
+        rhos = torch.tensor(np.reshape(np.array(rhos), (n_cell * T, 1)))
+
         # train critic
         if a_it % 50 == 0:
             keys = list()
@@ -123,10 +124,10 @@ def train_ddpg(rho, d, iterative_RL, iterations):
                     speed = float(actor.forward(np.array([i, t]) / n_cell))
                     if t != T:
                         if i != n_cell:
-                            truths.append(delta_T * 0.5 * (1 - rho[i, t] - speed) ** 2 + fake_critic(
+                            truths.append(delta_T * (0.5 * speed ** 2 + rho[i, t] * speed - speed) + fake_critic(
                                 np.array([i + speed, t + 1]) / n_cell))
                         else:
-                            truths.append(delta_T * 0.5 * (1 - rho[0, t] - speed) ** 2 + fake_critic(
+                            truths.append(delta_T * (0.5 * speed ** 2 + rho[0, t] * speed - speed) + fake_critic(
                                 np.array([speed, t + 1]) / n_cell))
                     else:
                         truths.append(0)
@@ -156,7 +157,7 @@ def train_ddpg(rho, d, iterative_RL, iterations):
         next_states = np.append(next_xs, next_ts, axis=1)
         interp_V_next_state = (torch.ones((n_cell * T, 1)) - speeds) * critic.forward(
             next_states_1) + speeds * critic.forward(next_states_2)
-        advantages = delta_T * 0.5 * (1 - rhos - speeds) ** 2 + interp_V_next_state - critic(states)
+        advantages = delta_T * (0.5 * speeds ** 2 + rhos * speeds - speeds) + interp_V_next_state - critic(states)
         policy_loss = advantages.mean()
         if a_it % 5 == 0:
             # print(max(critic.forward(next_states) - interp_V_next_state))
@@ -167,17 +168,16 @@ def train_ddpg(rho, d, iterative_RL, iterations):
         actor_optimizer.step()
 
         u_new = np.zeros((n_cell, T))
-        V_new = np.zeros((n_cell + 1, T + 1), dtype=np.float64)
-        for i in range(n_cell + 1):
-            for t in range(T + 1):
-                if i < n_cell and t < T:
-                    u_new[i, t] = actor(np.array([i, t]) / n_cell)
+        for i in range(n_cell):
+            for t in range(T):
+                u_new[i, t] = actor(np.array([i, t]) / n_cell)
 
-                V_new[i, t] = critic(np.array([i, t]) / n_cell)
-
-        rho_hist.append(get_rho_from_u(u_new, d))
+        u_hist.append(u_new)
+        u_mean = np.array(u_hist[-10:]).mean(axis=0)
+        rho = get_rho_from_u(u_mean, d)
+        rho_hist.append(rho)
+        rho = np.array(rho_hist[-1:]).mean(axis=0)
         if a_it % 200 == 0 and a_it != 0:
-            plot_3d(32, 1, u_new, f"./fig/u/{iterative_RL}_{a_it}.png")
-            plot_3d(32, 1, np.array(rho_hist[:-1]).mean(axis=0),  f"./fig/rho/{iterative_RL}_{a_it}.png")
-
-    return u_new
+            plot_3d(32, 1, u_new, f"./fig/u/{a_it}.png")  # show without fp
+            plot_3d(32, 1, np.array(rho_hist[-10:]).mean(axis=0),  f"./fig/rho_mean/{a_it}.png")  # show with fp
+            plot_3d(32, 1, rho, f"./fig/rho/{a_it}.png")  # show with fp on rho
