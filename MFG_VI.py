@@ -1,33 +1,6 @@
 import numpy as np
-import torch
-import pandas as pd
-import copy
-
-from value_iteration import value_iteration
 from value_iteration_ddpg import train_ddpg
-from utils import get_rho_from_u, plot_3d
-from torch import nn
-
-class Actor(nn.Module):
-    def __init__(self, state_dim):
-        super(Actor, self).__init__()
-        self.model = nn.Sequential(
-            nn.Linear(state_dim, 64),
-            nn.ReLU(),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Linear(32, 16),
-            nn.ReLU(),
-            nn.Linear(16, 8),
-            nn.ReLU(),
-            nn.Linear(8, 1)
-        )
-
-    def forward(self, x):
-        x = self.model(torch.from_numpy(x).float())
-        x = torch.tanh(x)
-        x = (x + 1) / 2
-        return x
+from utils import get_rho_from_u
 
 if __name__ == '__main__':
     n_cell = 32
