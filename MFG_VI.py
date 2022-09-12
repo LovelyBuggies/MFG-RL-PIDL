@@ -41,7 +41,5 @@ if __name__ == '__main__':
         0.8000
     ])
     u, rho = train_ddpg(n_cell, T_terminal, d, 800)
-    plot_3d(32, 1, u, f"./fig/u.png")  # show without fp
-    plot_3d(32, 1, rho, f"./fig/rho.png")  # show with fp on rho
 
 
