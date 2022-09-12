@@ -75,8 +75,7 @@ def train_ddpg(n_cell, T_terminal, d, iterations):
 
     u = 0.5 * np.ones((n_cell, T))
     V = np.zeros((n_cell + 1, T + 1), dtype=np.float64)
-    data = pd.read_csv('./data_rho_non_sep.csv')
-    rho = np.array(data.iloc[:, 1:len(data.iloc[0, :])])
+    rho = get_rho_from_u(u, d)
 
     # rho_network = RhoNetwork(2)
     # rho_optimizer = torch.optim.Adam(rho_network.parameters(), lr=1e-3)
@@ -84,8 +83,8 @@ def train_ddpg(n_cell, T_terminal, d, iterations):
 
     for it in range(iterations):
         # train V
-        for i in range(n_cell):
-            for t in range(T):
+        for t in range(T):
+            for i in range(n_cell):
                 rho_i_t = rho[i, t]
                 u[i, t] = (V[i, t + 1] - V[i + 1, t + 1]) / delta_T + 1 - rho_i_t
                 u[i, t] = min(max(u[i, t], 0), 1)
@@ -95,10 +94,11 @@ def train_ddpg(n_cell, T_terminal, d, iterations):
         V[-1, :] = V[0, :].copy()
 
         u_hist.append(u)
-        u_mean = np.array(u_hist[-1:]).mean(axis=0)
-        rho = get_rho_from_u(u_mean, d)
+        u = np.array(u_hist).mean(axis=0)
+        rho = get_rho_from_u(u, d)
         # rho_network = train_rho_network(n_cell, T_terminal, rho, rho_network, rho_optimizer)
 
-        if it % 10 == 0 and it != 0:
-            plot_3d(32, 1, u_mean, f"./fig/u/{it}.png")  # show without fp
-            plot_3d(32, 1, rho, f"./fig/rho/{it}.png")  # show with fp on rho
+        # if it % 10 == 0 and it != 0:
+            # plot_3d(32, 1, u, f"./fig/u/{it}.png")  # show without fp
+            # plot_3d(32, 1, rho, f"./fig/rho/{it}.png")  # show with fp on rho
+    return u, rho
