@@ -7,7 +7,7 @@ import pandas as pd
 if __name__ == '__main__':
     n_cell = 32
     T_terminal = 1
-    data = pd.read_csv('data_rho_sep.csv')
+    data = pd.read_csv('data_rho_non_sep.csv')
     rho = np.array(data.iloc[:, 1:len(data.iloc[0, :])])
     d = rho[:, 0]
     u, rho = train_ddpg(n_cell, T_terminal, d, 30000)

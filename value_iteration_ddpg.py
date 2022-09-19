@@ -96,18 +96,18 @@ def train_ddpg(n_cell, T_terminal, d, iterations):
         next_state_Vs = list()
         rhos = list()
         # value iteration
-        for t in range(T):
-            for i in range(n_cell):
+        for i in range(n_cell):
+            for t in range(T):
                 rho_i_t = float(rho_network.forward(np.array([i, t]) / n_cell))
                 speed = float(actor.forward(np.array([i / n_cell, t / n_cell])))
                     # switch lwr, non-sep, sep
                     # V[i, t] = delta_T * 0.5 * (1 - rho_i_t - u[i, t]) ** 2 + (1 - u[i, t]) * V[
                     #     i, t + 1] + u[i, t] * V[i + 1, t + 1]
                 if it != 0:
-                    # V[i, t] = delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + (1 - speed) * V[
-                    #     i, t + 1] + speed * V[i + 1, t + 1]
-                    V[i, t] = delta_T * (0.5 * u[i, t] ** 2 + rho_i_t - u[i, t]) + (1 - u[i, t]) * V[
-                        i, t + 1] + u[i, t] * V[i + 1, t + 1]
+                    V[i, t] = delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + (1 - speed) * V[
+                        i, t + 1] + speed * V[i + 1, t + 1]
+                    # V[i, t] = delta_T * (0.5 * u[i, t] ** 2 + rho_i_t - u[i, t]) + (1 - u[i, t]) * V[
+                    #     i, t + 1] + u[i, t] * V[i + 1, t + 1]
 
                 states.append([i / n_cell, t / n_cell])
                 state_Vs.append(V[i, t])
@@ -118,7 +118,7 @@ def train_ddpg(n_cell, T_terminal, d, iterations):
         states = np.array(states)
         rhos = torch.tensor(np.reshape(np.array(rhos), (n_cell * T, 1)))
 
-        for _ in range(10):
+        for _ in range(150):
             speeds = actor.forward(states)
             advantages = delta_T * (0.5 * speeds ** 2 + rhos * speeds - speeds) + torch.tensor(
                 next_state_Vs) - torch.tensor(state_Vs)
