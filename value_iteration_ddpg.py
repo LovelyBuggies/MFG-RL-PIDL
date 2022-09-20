@@ -138,7 +138,7 @@ def train_ddpg(n_cell, T_terminal, d, iterations):
         rho_network = train_rho_network_one_step(n_cell, T_terminal, rho, rho_network, rho_optimizer)
 
         if it % 20 == 0 and it != 0:
-            plot_3d(32, 1, u, f"./fig/u/{it}.png")  # show without fp
-            plot_3d(32, 1, rho, f"./fig/rho/{it}.png")  # show with fp on rho
+            plot_3d(n_cell, T_terminal, rho, f"./fig/u/{it}.png")  # show without fp
+            plot_3d(n_cell, T_terminal, rho, f"./fig/rho/{it}.png")  # show with fp on rho
 
     return u, rho
