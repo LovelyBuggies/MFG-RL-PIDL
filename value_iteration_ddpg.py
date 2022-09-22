@@ -150,11 +150,13 @@ def train_ddpg(n_cell, T_terminal, d, iterations):
                     if t != T:
                         if i != n_cell:
                             speed = float(actor.forward(np.array([i, t]) / n_cell))
-                            truths.append(delta_T * (0.5 * speed ** 2 + rho[i, t] * speed - speed) + fake_critic(
+                            rho_i_t = float(rho_network.forward(np.array([i, t]) / n_cell))
+                            truths.append(delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + fake_critic(
                                 np.array([i + speed, t + 1]) / n_cell))
                         else:
                             speed = float(actor.forward(np.array([0, t]) / n_cell))
-                            truths.append(delta_T * (0.5 * speed ** 2 + rho[0, t] * speed - speed) + fake_critic(
+                            rho_i_t = float(rho_network.forward(np.array([0, t]) / n_cell))
+                            truths.append(delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + fake_critic(
                                 np.array([speed, t + 1]) / n_cell))
                     else:
                         truths.append(0)
