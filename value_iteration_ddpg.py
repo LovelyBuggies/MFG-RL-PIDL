@@ -37,6 +37,27 @@ class Actor(nn.Module):
         return x
 
 
+class Critic(nn.Module):
+    def __init__(self, state_dim):
+        super(Critic, self).__init__()
+        self.model = nn.Sequential(
+            nn.Linear(state_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, 16),
+            nn.ReLU(),
+            nn.Linear(16, 8),
+            nn.ReLU(),
+            nn.Linear(8, 1)
+        )
+
+    def forward(self, x):
+        x = self.model(torch.from_numpy(x).float())
+        x = torch.tanh(x)
+        x = x / 2
+        return x
+
 class RhoNetwork(nn.Module):
     def __init__(self, state_dim):
         super().__init__()
@@ -92,36 +113,33 @@ def train_ddpg(n_cell, T_terminal, d, iterations):
 
     for it in range(iterations):
         states = list()
-        state_Vs = list()
-        next_state_Vs = list()
+        Vs = list()
+        Vus = list()
         rhos = list()
         # value iteration
         for i in range(n_cell):
             for t in range(T):
                 rho_i_t = float(rho_network.forward(np.array([i, t]) / n_cell))
                 speed = float(actor.forward(np.array([i / n_cell, t / n_cell])))
-                    # switch lwr, non-sep, sep
-                    # V[i, t] = delta_T * 0.5 * (1 - rho_i_t - u[i, t]) ** 2 + (1 - u[i, t]) * V[
-                    #     i, t + 1] + u[i, t] * V[i + 1, t + 1]
-                if it != 0:
-                    V[i, t] = delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + (1 - speed) * V[
+                V[i, t] = delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + (1 - speed) * V[
                         i, t + 1] + speed * V[i + 1, t + 1]
-                    # V[i, t] = delta_T * (0.5 * u[i, t] ** 2 + rho_i_t - u[i, t]) + (1 - u[i, t]) * V[
-                    #     i, t + 1] + u[i, t] * V[i + 1, t + 1]
 
                 states.append([i / n_cell, t / n_cell])
-                state_Vs.append(V[i, t])
-                next_state_Vs.append((1 - speed) * V[i, t + 1] + speed * V[i + 1, t + 1])
                 rhos.append(rho_i_t)
 
         V[-1, :] = V[0, :].copy()
+        for i in range(T):
+            for t in range(n_cell):
+                Vs.append(V[i, t + 1] - V[i, t])
+                Vus.append(V[i + 1, t + 1] - V[i, t + 1])
+
         states = np.array(states)
         rhos = torch.tensor(np.reshape(np.array(rhos), (n_cell * T, 1)))
-
-        for _ in range(150):
+        Vs = torch.tensor(np.reshape(np.array(Vs), (n_cell * T, 1)))
+        Vus = torch.tensor(np.reshape(np.array(Vus), (n_cell * T, 1)))
+        for _ in range(1):
             speeds = actor.forward(states)
-            advantages = delta_T * (0.5 * speeds ** 2 + rhos * speeds - speeds) + torch.tensor(
-                next_state_Vs) - torch.tensor(state_Vs)
+            advantages = delta_T * (0.5 * speeds ** 2 + rhos * speeds - speeds) + Vus * speeds + Vs
             policy_loss = advantages.mean()
             actor_optimizer.zero_grad()
             policy_loss.backward()
@@ -138,7 +156,7 @@ def train_ddpg(n_cell, T_terminal, d, iterations):
         rho_network = train_rho_network_one_step(n_cell, T_terminal, rho, rho_network, rho_optimizer)
 
         if it % 20 == 0 and it != 0:
-            plot_3d(n_cell, T_terminal, rho, f"./fig/u/{it}.png")  # show without fp
+            plot_3d(n_cell, T_terminal, u, f"./fig/u/{it}.png")  # show without fp
             plot_3d(n_cell, T_terminal, rho, f"./fig/rho/{it}.png")  # show with fp on rho
 
     return u, rho
