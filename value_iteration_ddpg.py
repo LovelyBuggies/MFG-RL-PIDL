@@ -1,11 +1,6 @@
 import numpy as np
 import torch
 from torch import nn
-from utils import plot_3d
-import csv
-import copy
-import pandas as pd
-from value_iteration import value_iteration
 from utils import get_rho_from_u, plot_3d
 
 
@@ -132,7 +127,6 @@ def train_ddpg(n_cell, T_terminal, d, iterations):
     u_hist = list()
 
     u_init = 0.5 * np.ones((n_cell, T))
-    V = np.zeros((n_cell + 1, T + 1), dtype=np.float64)
     rho = get_rho_from_u(u_init, d)
 
     actor = Actor(2)
@@ -148,7 +142,7 @@ def train_ddpg(n_cell, T_terminal, d, iterations):
 
     for it in range(iterations):
         # train critic
-        if it % 20 == 0:
+        if it % 1 == 0:
             keys, truths = list(), list()
             for i in range(n_cell + 1):
                 for t in range(T + 1):
@@ -175,16 +169,14 @@ def train_ddpg(n_cell, T_terminal, d, iterations):
 
             fake_critic = critic
 
+        # train actor
         states, rhos, Vs, Vus = list(), list(), list(), list()
         for i in range(n_cell):
             for t in range(T):
                 rho_i_t = float(rho_network.forward(np.array([i, t]) / n_cell))
-                # speed = float(actor.forward(np.array([i / n_cell, t / n_cell])))
-                # V[i, t] = delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + (1 - speed) * V[i, t + 1] + speed * V[i + 1, t + 1]
                 states.append([i / n_cell, t / n_cell])
                 rhos.append(rho_i_t)
 
-        # V[-1, :] = V[0, :].copy()
         for i in range(T):
             for t in range(n_cell):
                 Vs.append(float(critic(np.array([i, t + 1]) / n_cell) - critic(np.array([i, t]) / n_cell)))
@@ -202,7 +194,7 @@ def train_ddpg(n_cell, T_terminal, d, iterations):
             policy_loss.backward()
             actor_optimizer.step()
 
-
+        # train rho net
         u = np.zeros((n_cell, T))
         for i in range(n_cell):
             for t in range(T):
