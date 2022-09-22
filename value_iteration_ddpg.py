@@ -147,18 +147,12 @@ def train_ddpg(n_cell, T_terminal, d, iterations):
     rho_network = train_rho_network_one_step(n_cell, T_terminal, rho, rho_network, rho_optimizer)
 
     for it in range(iterations):
-        states = list()
-        Vs = list()
-        Vus = list()
-        rhos = list()
-        # value iteration
+        states, rhos, Vs, Vus = list(), list(), list(), list()
         for i in range(n_cell):
             for t in range(T):
                 rho_i_t = float(rho_network.forward(np.array([i, t]) / n_cell))
                 speed = float(actor.forward(np.array([i / n_cell, t / n_cell])))
-                V[i, t] = delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + (1 - speed) * V[
-                        i, t + 1] + speed * V[i + 1, t + 1]
-
+                V[i, t] = delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + (1 - speed) * V[i, t + 1] + speed * V[i + 1, t + 1]
                 states.append([i / n_cell, t / n_cell])
                 rhos.append(rho_i_t)
 
