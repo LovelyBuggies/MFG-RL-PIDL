@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from torch import nn
-from utils import get_rho_from_u, plot_3d
+from utils import get_rho_from_u, plot_3d, get_rho_network_from_u
 
 
 class Actor(nn.Module):
@@ -126,9 +126,6 @@ def train_ddpg(n_cell, T_terminal, d, iterations):
     T = int(T_terminal / delta_T)
     u_hist = list()
 
-    u_init = 0.5 * np.ones((n_cell, T))
-    rho = get_rho_from_u(u_init, d)
-
     actor = Actor(2)
     actor_optimizer = torch.optim.Adam(actor.parameters(), lr=1e-3)
 
@@ -138,6 +135,7 @@ def train_ddpg(n_cell, T_terminal, d, iterations):
 
     rho_network = RhoNetwork(2)
     rho_optimizer = torch.optim.Adam(rho_network.parameters(), lr=1e-3)
+    rho = get_rho_from_u(0.5 * np.ones((n_cell, T)), d)
     rho_network = train_rho_network_one_step(n_cell, T_terminal, rho, rho_network, rho_optimizer)
 
     for it in range(iterations):
@@ -201,11 +199,11 @@ def train_ddpg(n_cell, T_terminal, d, iterations):
         for i in range(n_cell):
             for t in range(T):
                 u[i, t] = actor(np.array([i, t]) / n_cell)
+                rho[i, t] = rho_network(np.array([i, t]) / n_cell)
 
         u_hist.append(u)
         u = np.array(u_hist).mean(axis=0)
-        rho = get_rho_from_u(u, d)
-        rho_network = train_rho_network_one_step(n_cell, T_terminal, rho, rho_network, rho_optimizer)
+        rho_network = get_rho_network_from_u(n_cell, T_terminal, u, d, rho_network, rho_optimizer)
 
         if it % 20 == 0 and it != 0:
             plot_3d(n_cell, T_terminal, u, f"./fig/u/{it}.png")  # show without fp

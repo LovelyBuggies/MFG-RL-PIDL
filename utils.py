@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 import csv
-
+import torch
 
 def calculate_optimal_costs(u, V):
     n_cell = len(u)
@@ -37,6 +37,33 @@ def get_rho_from_u(u, d):
                     rho[i, t] = rho[i][t - 1] + rho[i - 1, t - 1] * u[i - 1, t - 1] - rho[i, t - 1] * u[i, t - 1]
 
     return rho
+
+
+def get_rho_network_from_u(n_cell, T_terminal, u, d, rho_network, rho_optimizer, n_iterations=100):
+    states, rho_values = list(), list()
+    T = n_cell * T_terminal
+    for t in range(T):
+        for i in range(n_cell):
+            states.append([i / n_cell, t / n_cell])
+            if t == 0:
+                rho_values.append(d[i])
+            else:
+                if i == 0:
+                    rho_values.append(float(rho_network(np.array([i, t - 1]) / n_cell) + rho_network(np.array([-1, t - 1]) / n_cell) * u[-1, t - 1] - rho_network(np.array([i, t - 1]) / n_cell) * u[i, t - 1]))
+                else:
+                    rho_values.append(float(rho_network(np.array([i, t - 1]) / n_cell) + rho_network(np.array([i - 1, t - 1]) / n_cell) * u[i - 1, t - 1] - rho_network(np.array([i, t - 1]) / n_cell) * u[i, t - 1]))
+
+    rho_values = torch.tensor(np.array(rho_values))
+    for _ in range(n_iterations):
+        preds = torch.reshape(rho_network(np.array(states)), (1, len(rho_values)))
+        rho_loss = (rho_values - preds).abs().mean()
+        rho_optimizer.zero_grad()
+        rho_loss.backward()
+        rho_optimizer.step()
+
+    return rho_network
+
+
 
 def plot_3d(n_cell, T_terminal, rho, fig_name):
     fig = plt.figure()
