@@ -73,36 +73,6 @@ class RhoNetwork(nn.Module):
         return self.model(torch.from_numpy(x).float())
 
 
-def train_critic_fake(n_cell, T_terminal, V_array):
-    T = n_cell * T_terminal
-    truths = []
-    keys = []
-
-    liu = Critic(2)
-    liu_optimizer = torch.optim.Adam(liu.parameters(), lr=1e-3)
-
-    for i in range(n_cell + 1):
-        for t in range(T + 1):
-            truths.append(V_array[i, t])
-            keys.append(np.array([i, t]) / n_cell)
-
-    for _ in range(1000):
-        truths = torch.tensor(truths, requires_grad=True)
-        preds = torch.reshape(liu(np.array(keys)), (1, len(truths)))
-        loss = (truths - preds).abs().mean()
-        # print(loss)
-        liu_optimizer.zero_grad()
-        loss.backward()
-        liu_optimizer.step()
-
-    pred_V = np.zeros((n_cell + 1, T + 1))
-    for i in range(n_cell + 1):
-        for t in range(T + 1):
-            pred_V[i, t] = liu(np.array([i, t]) / n_cell)
-
-    return liu
-
-
 def train_rho_network_one_step(n_cell, T_terminal, rho, rho_network, rho_optimizer):
     truths, keys = list(), list()
     for i in range(len(rho)):
@@ -129,7 +99,7 @@ def train_ddpg(n_cell, T_terminal, d, iterations):
     actor = Actor(2)
     actor_optimizer = torch.optim.Adam(actor.parameters(), lr=1e-3)
 
-    fake_critic = train_critic_fake(n_cell, T_terminal, np.zeros((n_cell + 1, T + 1)))
+    fake_critic = Critic(2)
     critic = Critic(2)
     critic_optimizer = torch.optim.Adam(critic.parameters(), lr=1e-3)
 
