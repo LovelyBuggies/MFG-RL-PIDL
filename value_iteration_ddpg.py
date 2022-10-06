@@ -90,7 +90,6 @@ def train_critic_fake(n_cell, T_terminal, V_array):
         truths = torch.tensor(truths, requires_grad=True)
         preds = torch.reshape(liu(np.array(keys)), (1, len(truths)))
         loss = (truths - preds).abs().mean()
-        # print(loss)
         liu_optimizer.zero_grad()
         loss.backward()
         liu_optimizer.step()
@@ -110,7 +109,7 @@ def train_rho_network_one_step(n_cell, T_terminal, rho, rho_network, rho_optimiz
             truths.append(rho[i, j])
             keys.append(np.array([i, j]) / n_cell)
 
-    for _ in range(1):
+    for _ in range(100):
         truths = torch.tensor(truths, requires_grad=True)
         preds = torch.reshape(rho_network(np.array(keys)), (1, len(truths)))
         loss = (truths - preds).abs().mean()
@@ -121,7 +120,7 @@ def train_rho_network_one_step(n_cell, T_terminal, rho, rho_network, rho_optimiz
     return rho_network
 
 
-def train_ddpg(n_cell, T_terminal, d, iterations, fake_start=True):
+def train_ddpg(reward, n_cell, T_terminal, d, iterations, fake_start=True):
     delta_T = 1 / n_cell
     T = int(T_terminal / delta_T)
     u_hist = list()
@@ -129,10 +128,11 @@ def train_ddpg(n_cell, T_terminal, d, iterations, fake_start=True):
     actor = Actor(2)
     actor_optimizer = torch.optim.Adam(actor.parameters(), lr=1e-3)
 
-    if fake_start:
+    if fake_start == True:
         fake_critic = train_critic_fake(n_cell, T_terminal, np.zeros((n_cell + 1, T + 1)))
     else:
         fake_critic = Critic(2)
+
     critic = Critic(2)
     critic_optimizer = torch.optim.Adam(critic.parameters(), lr=1e-3)
 
@@ -152,18 +152,30 @@ def train_ddpg(n_cell, T_terminal, d, iterations, fake_start=True):
                         if i != n_cell:
                             speed = float(actor.forward(np.array([i, t]) / n_cell))
                             rho_i_t = float(rho_network.forward(np.array([i, t]) / n_cell))
-                            truths.append(delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + fake_critic(
-                                np.array([i + speed, t + 1]) / n_cell))
+                            if reward == 'lwr':
+                                truths.append(delta_T * 0.5 * (1 - speed - rho_i_t) ** 2 + fake_critic(
+                                    np.array([i + speed, t + 1]) / n_cell))
+                            elif reward == 'non-sep':
+                                truths.append(delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + fake_critic(
+                                    np.array([i + speed, t + 1]) / n_cell))
+                            else:
+                                raise NotImplementedError()
                         else:
                             speed = float(actor.forward(np.array([0, t]) / n_cell))
                             rho_i_t = float(rho_network.forward(np.array([0, t]) / n_cell))
-                            truths.append(delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + fake_critic(
-                                np.array([speed, t + 1]) / n_cell))
+                            if reward == 'lwr':
+                                truths.append(delta_T * 0.5 * (1 - speed - rho_i_t) ** 2 + fake_critic(
+                                    np.array([speed, t + 1]) / n_cell))
+                            elif reward == 'non-sep':
+                                truths.append(delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + fake_critic(
+                                    np.array([speed, t + 1]) / n_cell))
+                            else:
+                                raise NotImplementedError()
                     else:
                         truths.append(0)
 
             truths = torch.tensor(truths, requires_grad=True)
-            for _ in range(100):
+            for _ in range(1):
                 preds = torch.reshape(critic(np.array(keys)), (1, len(truths)))
                 critic_loss = (truths - preds).abs().mean()
                 critic_optimizer.zero_grad()
@@ -189,13 +201,24 @@ def train_ddpg(n_cell, T_terminal, d, iterations, fake_start=True):
         rhos = torch.tensor(np.reshape(np.array(rhos), (n_cell * T, 1)))
         Vs = torch.tensor(np.reshape(np.array(Vs), (n_cell * T, 1)))
         Vus = torch.tensor(np.reshape(np.array(Vus), (n_cell * T, 1)))
-        for _ in range(1):
-            speeds = actor.forward(states)
-            advantages = delta_T * (0.5 * speeds ** 2 + rhos * speeds - speeds) + Vus * speeds + Vs
-            policy_loss = advantages.mean()
-            actor_optimizer.zero_grad()
-            policy_loss.backward()
-            actor_optimizer.step()
+        if reward == 'lwr':
+            for _ in range(100):
+                speeds = actor.forward(states)
+                advantages = delta_T * 0.5 * (1 - speeds - rhos) ** 2 + Vus * speeds + Vs
+                policy_loss = advantages.mean()
+                actor_optimizer.zero_grad()
+                policy_loss.backward()
+                actor_optimizer.step()
+        elif reward == 'non-sep':
+            for _ in range(1):
+                speeds = actor.forward(states)
+                advantages = delta_T * (0.5 * speeds ** 2 + rhos * speeds - speeds) + Vus * speeds + Vs
+                policy_loss = advantages.mean()
+                actor_optimizer.zero_grad()
+                policy_loss.backward()
+                actor_optimizer.step()
+        else:
+            raise NotImplementedError()
 
         # train rho net
         u = np.zeros((n_cell, T))
@@ -211,7 +234,7 @@ def train_ddpg(n_cell, T_terminal, d, iterations, fake_start=True):
         if it % 20 == 0 and it != 0:
             plot_3d(n_cell, T_terminal, u, f"./fig/u/{it}.pdf")  # show without fp
             plot_3d(n_cell, T_terminal, rho, f"./fig/rho/{it}.pdf")  # show with fp on rho
-            if it > 1200 and it % 40 == 0:
+            if it > 3200 and it % 40 == 0:
                 u_plot = np.zeros((n_cell * 4, T * 4))
                 rho_plot = np.zeros((n_cell * 4, T * 4))
                 for i in range(n_cell * 4):
