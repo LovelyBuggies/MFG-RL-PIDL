@@ -73,6 +73,36 @@ class RhoNetwork(nn.Module):
         return self.model(torch.from_numpy(x).float())
 
 
+def train_critic_fake(n_cell, T_terminal, V_array):
+    T = n_cell * T_terminal
+    truths = []
+    keys = []
+
+    liu = Critic(2)
+    liu_optimizer = torch.optim.Adam(liu.parameters(), lr=1e-3)
+
+    for i in range(n_cell + 1):
+        for t in range(T + 1):
+            truths.append(V_array[i, t])
+            keys.append(np.array([i, t]) / n_cell)
+
+    for _ in range(1000):
+        truths = torch.tensor(truths, requires_grad=True)
+        preds = torch.reshape(liu(np.array(keys)), (1, len(truths)))
+        loss = (truths - preds).abs().mean()
+        # print(loss)
+        liu_optimizer.zero_grad()
+        loss.backward()
+        liu_optimizer.step()
+
+    pred_V = np.zeros((n_cell + 1, T + 1))
+    for i in range(n_cell + 1):
+        for t in range(T + 1):
+            pred_V[i, t] = liu(np.array([i, t]) / n_cell)
+
+    return liu
+
+
 def train_rho_network_one_step(n_cell, T_terminal, rho, rho_network, rho_optimizer):
     truths, keys = list(), list()
     for i in range(len(rho)):
@@ -91,7 +121,7 @@ def train_rho_network_one_step(n_cell, T_terminal, rho, rho_network, rho_optimiz
     return rho_network
 
 
-def train_ddpg(n_cell, T_terminal, d, iterations):
+def train_ddpg(n_cell, T_terminal, d, iterations, fake_start=True):
     delta_T = 1 / n_cell
     T = int(T_terminal / delta_T)
     u_hist = list()
@@ -99,7 +129,10 @@ def train_ddpg(n_cell, T_terminal, d, iterations):
     actor = Actor(2)
     actor_optimizer = torch.optim.Adam(actor.parameters(), lr=1e-3)
 
-    fake_critic = Critic(2)
+    if fake_start:
+        fake_critic = train_critic_fake(n_cell, T_terminal, np.zeros((n_cell + 1, T + 1)))
+    else:
+        fake_critic = Critic(2)
     critic = Critic(2)
     critic_optimizer = torch.optim.Adam(critic.parameters(), lr=1e-3)
 
@@ -176,7 +209,17 @@ def train_ddpg(n_cell, T_terminal, d, iterations):
         rho_network = get_rho_network_from_u(n_cell, T_terminal, u, d, rho_network, rho_optimizer)
 
         if it % 20 == 0 and it != 0:
-            plot_3d(n_cell, T_terminal, u, f"./fig/u/{it}.png")  # show without fp
-            plot_3d(n_cell, T_terminal, rho, f"./fig/rho/{it}.png")  # show with fp on rho
+            plot_3d(n_cell, T_terminal, u, f"./fig/u/{it}.pdf")  # show without fp
+            plot_3d(n_cell, T_terminal, rho, f"./fig/rho/{it}.pdf")  # show with fp on rho
+            if it > 1200 and it % 40 == 0:
+                u_plot = np.zeros((n_cell * 4, T * 4))
+                rho_plot = np.zeros((n_cell * 4, T * 4))
+                for i in range(n_cell * 4):
+                    for t in range(T * 4):
+                        u_plot[i, t] = actor(np.array([i, t]) / n_cell / 4)
+                        rho_plot[i, t] = rho_network(np.array([i, t]) / n_cell / 4)
+
+                plot_3d(n_cell * 4, T_terminal, u_plot, f"./fig/u/{it}.pdf")  # show without fp
+                plot_3d(n_cell * 4, T_terminal, rho_plot, f"./fig/rho/{it}.pdf")  # show with fp on rho
 
     return u, rho

@@ -75,6 +75,8 @@ def plot_3d(n_cell, T_terminal, rho, fig_name):
     ax.zaxis.set_major_locator(LinearLocator(10))
     ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
     plt.xlim(max(x), min(x))
+    # ax.tick_params(axis='both', which='major', labelsize=15)
+    # plt.grid(alpha=0.3)
     if not fig_name:
         plt.show()
     else:
