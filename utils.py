@@ -65,18 +65,36 @@ def get_rho_network_from_u(n_cell, T_terminal, u, d, rho_network, rho_optimizer,
 
 
 
-def plot_3d(n_cell, T_terminal, rho, fig_name):
-    fig = plt.figure()
+def plot_3d(n_cell, T_terminal, rho, ax_names, fig_name):
+    fig = plt.figure(figsize=(5, 5))
     ax = fig.gca(projection='3d')
     x = np.linspace(0, 1, n_cell)
     t = np.linspace(0, T_terminal, n_cell * T_terminal)
     t_mesh, x_mesh = np.meshgrid(t, x)
     surf = ax.plot_surface(x_mesh, t_mesh, rho, cmap=cm.jet, linewidth=0, antialiased=False)
-    ax.zaxis.set_major_locator(LinearLocator(10))
+    ax.grid(False)
+    # ax.tick_params(axis='both', which='major', labelsize=20)
+
+    ax.set_xlabel("x", fontsize=15)
+    ax.set_xlim(max(x), min(x))
+    # ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.xaxis.set_major_locator(LinearLocator(5))
+    ax.xaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+
+    ax.set_ylabel("t", fontsize=15)
+    ax.set_ylim(min(t), max(t))
+    # ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.yaxis.set_major_locator(LinearLocator(5))
+    ax.yaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+
+    ax.set_zlabel(ax_names, fontsize=15)
+    # if ax_names == 'u':
+    #     ax.set_zlim(.6, 1.)
+    # else:
+    #     ax.set_zlim(.2, .5)
+    # ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.zaxis.set_major_locator(LinearLocator(5))
     ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-    plt.xlim(max(x), min(x))
-    # ax.tick_params(axis='both', which='major', labelsize=15)
-    # plt.grid(alpha=0.3)
     if not fig_name:
         plt.show()
     else:
