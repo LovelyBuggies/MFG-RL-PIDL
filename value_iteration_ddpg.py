@@ -118,7 +118,7 @@ def train_rho_network_one_step(n_cell, T_terminal, rho, rho_network, rho_optimiz
     return rho_network
 
 
-def train_ddpg(n_cell, T_terminal, d, iterations, fake_critic, smooth_plot):
+def train_ddpg(reward, n_cell, T_terminal, d, iterations, fake_critic, smooth_plot):
     delta_T = 1 / n_cell
     T = int(T_terminal / delta_T)
     u_hist = list()
@@ -150,18 +150,31 @@ def train_ddpg(n_cell, T_terminal, d, iterations, fake_critic, smooth_plot):
                         if i != n_cell:
                             speed = float(actor.forward(np.array([i, t]) / n_cell))
                             rho_i_t = float(rho_network.forward(np.array([i, t]) / n_cell))
-                            truths.append(delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + fake_critic(
-                                np.array([i + speed, t + 1]) / n_cell))
+                            if reward == 'lwr':
+                                truths.append(delta_T * 0.5 * (1 - speed - rho_i_t) ** 2 + fake_critic(
+                                    np.array([i + speed, t + 1]) / n_cell))
+                            elif reward == 'non-sep':
+                                truths.append(delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + fake_critic(
+                                    np.array([i + speed, t + 1]) / n_cell))
+                            else:
+                                raise NotImplementedError()
                         else:
                             speed = float(actor.forward(np.array([0, t]) / n_cell))
                             rho_i_t = float(rho_network.forward(np.array([0, t]) / n_cell))
-                            truths.append(delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + fake_critic(
-                                np.array([speed, t + 1]) / n_cell))
+                            if reward == 'lwr':
+                                truths.append(delta_T * 0.5 * (1 - speed - rho_i_t) ** 2 + fake_critic(
+                                    np.array([speed, t + 1]) / n_cell))
+                            elif reward == 'non-sep':
+                                truths.append(delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + fake_critic(
+                                    np.array([speed, t + 1]) / n_cell))
+                            else:
+                                raise NotImplementedError()
                     else:
                         truths.append(0)
 
             truths = torch.tensor(truths, requires_grad=True)
-            for _ in range(100):
+            n_critic_train_loop = 100 if reward == "non-sep" else 5000
+            for _ in range(n_critic_train_loop):
                 preds = torch.reshape(critic(np.array(keys)), (1, len(truths)))
                 critic_loss = (truths - preds).abs().mean()
                 critic_optimizer.zero_grad()
@@ -187,13 +200,25 @@ def train_ddpg(n_cell, T_terminal, d, iterations, fake_critic, smooth_plot):
         rhos = torch.tensor(np.reshape(np.array(rhos), (n_cell * T, 1)))
         Vs = torch.tensor(np.reshape(np.array(Vs), (n_cell * T, 1)))
         Vus = torch.tensor(np.reshape(np.array(Vus), (n_cell * T, 1)))
-        for _ in range(1):
-            speeds = actor.forward(states)
-            advantages = delta_T * (0.5 * speeds ** 2 + rhos * speeds - speeds) + Vus * speeds + Vs
-            policy_loss = advantages.mean()
-            actor_optimizer.zero_grad()
-            policy_loss.backward()
-            actor_optimizer.step()
+        n_actor_train_loop = 1 if reward == "non-sep" else 3000
+        if reward == 'lwr':
+            for _ in range(n_actor_train_loop):
+                speeds = actor.forward(states)
+                advantages = delta_T * 0.5 * (1 - speeds - rhos) ** 2 + Vus * speeds + Vs
+                policy_loss = advantages.mean()
+                actor_optimizer.zero_grad()
+                policy_loss.backward()
+                actor_optimizer.step()
+        elif reward == 'non-sep':
+            for _ in range(n_actor_train_loop):
+                speeds = actor.forward(states)
+                advantages = delta_T * (0.5 * speeds ** 2 + rhos * speeds - speeds) + Vus * speeds + Vs
+                policy_loss = advantages.mean()
+                actor_optimizer.zero_grad()
+                policy_loss.backward()
+                actor_optimizer.step()
+        else:
+            raise NotImplementedError()
 
         # train rho net
         u = np.zeros((n_cell, T))
@@ -204,9 +229,11 @@ def train_ddpg(n_cell, T_terminal, d, iterations, fake_critic, smooth_plot):
 
         u_hist.append(u)
         u = np.array(u_hist).mean(axis=0)
-        rho_network = get_rho_network_from_u(n_cell, T_terminal, u, d, rho_network, rho_optimizer)
+        n_rho_train_loop = 100 if reward == "non-sep" else 2000
+        rho_network = get_rho_network_from_u(n_cell, T_terminal, u, d, rho_network, rho_optimizer, n_iterations=n_rho_train_loop)
 
-        if it % 20 == 0 and it != 0:
+        plot_interval = 20 if reward == "non-sep" else 2
+        if it % plot_interval == 0 and it != 0:
             if smooth_plot:
                 u_plot = np.zeros((n_cell * 4, T * 4))
                 rho_plot = np.zeros((n_cell * 4, T * 4))

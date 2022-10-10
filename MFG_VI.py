@@ -8,4 +8,4 @@ if __name__ == '__main__':
     data = pd.read_csv('data_rho_8.csv')
     rho = np.array(data.iloc[:, 1:len(data.iloc[0, :])])
     d = rho[:, 0]
-    u, rho = train_ddpg(n_cell, T_terminal, d, 2000, fake_critic=True, smooth_plot=True)
+    u, rho = train_ddpg("non-sep", n_cell, T_terminal, d, 200, fake_critic=True, smooth_plot=True)
