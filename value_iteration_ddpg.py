@@ -109,7 +109,7 @@ def train_rho_network_one_step(n_cell, T_terminal, rho, rho_network, rho_optimiz
             truths.append(rho[i, j])
             keys.append(np.array([i, j]) / n_cell)
 
-    for _ in range(1):
+    for _ in range(100):
         truths = torch.tensor(truths, requires_grad=True)
         preds = torch.reshape(rho_network(np.array(keys)), (1, len(truths)))
         loss = (truths - preds).abs().mean()
@@ -202,7 +202,7 @@ def train_ddpg(reward, n_cell, T_terminal, d, iterations, fake_start=True):
         Vs = torch.tensor(np.reshape(np.array(Vs), (n_cell * T, 1)))
         Vus = torch.tensor(np.reshape(np.array(Vus), (n_cell * T, 1)))
         if reward == 'lwr':
-            for _ in range(1):
+            for _ in range(100):
                 speeds = actor.forward(states)
                 advantages = delta_T * 0.5 * (1 - speeds - rhos) ** 2 + Vus * speeds + Vs
                 policy_loss = advantages.mean()
