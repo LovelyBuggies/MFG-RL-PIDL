@@ -25,12 +25,6 @@ class Actor(nn.Module):
         x = (x + 1) / 2
         return x
 
-    def f(self, x):
-        x = self.model(x)
-        x = torch.tanh(x)
-        x = (x + 1) / 2
-        return x
-
 
 class Critic(nn.Module):
     def __init__(self, state_dim):
