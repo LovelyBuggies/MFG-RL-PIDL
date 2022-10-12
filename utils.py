@@ -2,24 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
-import csv
+import pandas as pd
 import torch
-
-def calculate_optimal_costs(u, V):
-    n_cell = len(u)
-    T_terminal = int(len(u[0]) / n_cell)
-    curr_i, curr_t = 0, 0
-    costs = V[0, 0]
-    while curr_i < n_cell - 1:
-        if curr_t > T_terminal:
-            return float('inf')
-
-        curr_i += int(u[curr_i, curr_t])
-        curr_t += 1
-        costs += V[curr_i, curr_t]
-
-    return costs
-
+import os
 
 
 def get_rho_from_u(u, d):
@@ -64,8 +49,25 @@ def get_rho_network_from_u(n_cell, T_terminal, u, d, rho_network, rho_optimizer,
     return rho_network
 
 
+def train_rho_network_one_step(n_cell, T_terminal, rho, rho_network, rho_optimizer):
+    truths, keys = list(), list()
+    for i in range(len(rho)):
+        for j in range(len(rho[0])):
+            truths.append(rho[i, j])
+            keys.append(np.array([i, j]) / n_cell)
 
-def plot_3d(n_cell, T_terminal, rho, ax_names, fig_name):
+    for _ in range(1):
+        truths = torch.tensor(truths, requires_grad=True)
+        preds = torch.reshape(rho_network(np.array(keys)), (1, len(truths)))
+        loss = (truths - preds).abs().mean()
+        rho_optimizer.zero_grad()
+        loss.backward()
+        rho_optimizer.step()
+
+    return rho_network
+
+
+def plot_3d(n_cell, T_terminal, rho, ax_name, fig_name=None):
     fig = plt.figure(figsize=(5, 5))
     ax = fig.gca(projection='3d')
     x = np.linspace(0, 1, n_cell)
@@ -87,7 +89,7 @@ def plot_3d(n_cell, T_terminal, rho, ax_names, fig_name):
     ax.yaxis.set_major_locator(LinearLocator(5))
     ax.yaxis.set_major_formatter(FormatStrFormatter('%.02f'))
 
-    ax.set_zlabel(ax_names, fontsize=15)
+    ax.set_zlabel(ax_name, fontsize=15)
     # if ax_names == 'u':
     #     ax.set_zlim(.6, 1.)
     # else:
@@ -101,10 +103,18 @@ def plot_3d(n_cell, T_terminal, rho, ax_names, fig_name):
         plt.savefig(fig_name)
 
 
-def array2csv(n_cell, T_terminal, array, file_name):
-    res = np.append([np.array(range(len(array))) / n_cell], array, axis=0)
-    column = np.append([np.array([0])], np.reshape(np.arange(len(array[0])) / n_cell, (len(array[0]), 1)), axis=0)
-    res = np.append(column, res, axis=1)
-    with open(file_name, "w+") as my_csv:
-        csvWriter = csv.writer(my_csv, delimiter=',')
-        csvWriter.writerows(res)
+def plot_diff(fig_name=None):
+    for reward in ["lwr", "non-sep", "sep"]:
+        if os.path.exists(f"./diff/u-{reward}.csv"):
+            fig = plt.figure(figsize=(6, 4))
+            u_diff_hist = pd.read_csv(f"./diff/u-{reward}.csv")['0'].values.tolist()
+            plt.plot(u_diff_hist, lw=3, label="u", c='steelblue')
+            rho_diff_hist = pd.read_csv(f"./diff/rho-{reward}.csv")['0'].values.tolist()
+            plt.plot(rho_diff_hist, lw=3, label=r"$\rho$", c='indianred', alpha=.8)
+            plt.xlabel("Episode")
+            plt.ylabel("Difference")
+            plt.legend()
+            if not fig_name:
+                plt.show()
+            else:
+                plt.savefig(fig_name)
