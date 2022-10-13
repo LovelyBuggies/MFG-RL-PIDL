@@ -5,6 +5,7 @@ from matplotlib.ticker import LinearLocator, FormatStrFormatter
 import pandas as pd
 import torch
 import os
+from model import Critic
 
 
 def get_rho_from_u(u, d):
@@ -49,14 +50,14 @@ def get_rho_network_from_u(n_cell, T_terminal, u, d, rho_network, rho_optimizer,
     return rho_network
 
 
-def train_rho_network_one_step(n_cell, T_terminal, rho, rho_network, rho_optimizer):
+def train_rho_network_n_step(n_cell, T_terminal, rho, rho_network, rho_optimizer, n_iterations=1):
     truths, keys = list(), list()
     for i in range(len(rho)):
         for j in range(len(rho[0])):
             truths.append(rho[i, j])
             keys.append(np.array([i, j]) / n_cell)
 
-    for _ in range(1):
+    for _ in range(n_iterations):
         truths = torch.tensor(truths, requires_grad=True)
         preds = torch.reshape(rho_network(np.array(keys)), (1, len(truths)))
         loss = (truths - preds).abs().mean()
@@ -65,6 +66,36 @@ def train_rho_network_one_step(n_cell, T_terminal, rho, rho_network, rho_optimiz
         rho_optimizer.step()
 
     return rho_network
+
+
+def train_fake_critic(n_cell, T_terminal, V_array):
+    T = n_cell * T_terminal
+    truths = []
+    keys = []
+
+    liu = Critic(2)
+    liu_optimizer = torch.optim.Adam(liu.parameters(), lr=1e-3)
+
+    for i in range(n_cell + 1):
+        for t in range(T + 1):
+            truths.append(V_array[i, t])
+            keys.append(np.array([i, t]) / n_cell)
+
+    for _ in range(1000):
+        truths = torch.tensor(truths, requires_grad=True)
+        preds = torch.reshape(liu(np.array(keys)), (1, len(truths)))
+        loss = (truths - preds).abs().mean()
+        # print(loss)
+        liu_optimizer.zero_grad()
+        loss.backward()
+        liu_optimizer.step()
+
+    pred_V = np.zeros((n_cell + 1, T + 1))
+    for i in range(n_cell + 1):
+        for t in range(T + 1):
+            pred_V[i, t] = liu(np.array([i, t]) / n_cell)
+
+    return liu
 
 
 def plot_3d(n_cell, T_terminal, rho, ax_name, fig_name=None):
