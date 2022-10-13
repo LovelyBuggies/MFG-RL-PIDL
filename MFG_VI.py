@@ -12,6 +12,6 @@ if __name__ == '__main__':
     d = rho[:, 0]
     reward = "lwr"
     n_episodes = 1500 if reward == "non-sep" else 30
-    train_ddpg(reward, n_cell, T_terminal, d, n_episodes, fake_critic=False, pidl=True, surf_plot=True, smooth_plot=False, diff_plot=False)
+    train_ddpg(reward, n_cell, T_terminal, d, n_episodes, fake_critic=True, pidl=True, surf_plot=True, smooth_plot=False, diff_plot=False)
 
     # plot_diff()

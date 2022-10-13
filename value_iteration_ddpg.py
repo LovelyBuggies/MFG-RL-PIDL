@@ -90,7 +90,7 @@ def train_ddpg(reward, n_cell, T_terminal, d, iterations, fake_critic, pidl, sur
         rhos = torch.tensor(np.reshape(np.array(rhos), (n_cell * T, 1)))
         Vs = torch.tensor(np.reshape(np.array(Vs), (n_cell * T, 1)))
         Vus = torch.tensor(np.reshape(np.array(Vus), (n_cell * T, 1)))
-        n_actor_train_loop = 1 if reward == "non-sep" else 500
+        n_actor_train_loop = 1 if reward == "non-sep" else 3000
         if reward == 'lwr':
             for _ in range(n_actor_train_loop):
                 speeds = actor.forward(states)
@@ -124,11 +124,11 @@ def train_ddpg(reward, n_cell, T_terminal, d, iterations, fake_critic, pidl, sur
             u_diff_hist.append(np.mean(abs(u_hist[-1] - u_hist[-2])))
             rho_diff_hist.append(np.mean(abs(rho_hist[-1] - rho_hist[-2])))
 
-        n_rho_train_loop = 100 if reward == "non-sep" else 3000
+        n_rho_train_loop = 100 if reward == "non-sep" else 5000
         if pidl:
             rho_network = get_rho_network_from_u(n_cell, T_terminal, u, d, rho_network, rho_optimizer, n_iterations=n_rho_train_loop)
         else:
-            rho_network = train_rho_network_n_step(n_cell, T_terminal, rho, rho_network, rho_optimizer, n_iterations=1)
+            rho_network = train_rho_network_n_step(n_cell, T_terminal, rho, rho_network, rho_optimizer, n_iterations=n_rho_train_loop)
 
         if surf_plot:
             plot_interval = 20 if reward == "non-sep" else 2
