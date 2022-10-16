@@ -10,8 +10,8 @@ if __name__ == '__main__':
     data = pd.read_csv('data_rho_8.csv')
     rho = np.array(data.iloc[:, 1:len(data.iloc[0, :])])
     d = rho[:, 0]
-    reward = "lwr"
-    n_episodes = 1500 if reward == "non-sep" else 30
-    train_ddpg(reward, n_cell, T_terminal, d, n_episodes, fake_critic=True, pidl=True, surf_plot=True, smooth_plot=False, diff_plot=False)
+    n_episode = {"lwr": 30, "non-sep": 1500, "sep": 1500}
+    option = "non-sep"
+    train_ddpg(option, n_cell, T_terminal, d, n_episode[option], fake_critic=True, pidl=True, surf_plot=True, smooth_plot=False, diff_plot=False)
 
-    # plot_diff()
+    plot_diff("./diff/")

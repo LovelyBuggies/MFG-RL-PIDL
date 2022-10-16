@@ -124,11 +124,11 @@ def train_ddpg(reward, n_cell, T_terminal, d, iterations, fake_critic, pidl, sur
             u_diff_hist.append(np.mean(abs(u_hist[-1] - u_hist[-2])))
             rho_diff_hist.append(np.mean(abs(rho_hist[-1] - rho_hist[-2])))
 
-        n_rho_train_loop = 100 if reward == "non-sep" else 5000
+        n_rho_train_loop = 100 if reward == "non-sep" else 3000
         if pidl:
             rho_network = get_rho_network_from_u(n_cell, T_terminal, u, d, rho_network, rho_optimizer, n_iterations=n_rho_train_loop)
         else:
-            rho_network = train_rho_network_n_step(n_cell, T_terminal, rho, rho_network, rho_optimizer, n_iterations=n_rho_train_loop)
+            rho_network = train_rho_network_n_step(n_cell, T_terminal, rho, rho_network, rho_optimizer, n_iterations=3000)
 
         if surf_plot:
             plot_interval = 20 if reward == "non-sep" else 2
@@ -155,6 +155,6 @@ def train_ddpg(reward, n_cell, T_terminal, d, iterations, fake_critic, pidl, sur
         u_diff_df.to_csv(f"./diff/u-{reward}.csv")
         rho_diff_df = pd.DataFrame(rho_diff_hist)
         rho_diff_df.to_csv(f"./diff/rho-{reward}.csv")
-        plot_diff(reward)
+        plot_diff()
 
     return
