@@ -7,3 +7,5 @@ fig/*
 csv/*
 model/*
 .ipynb_checkpoints/*.ipynb
+diff/*
+*.pdf

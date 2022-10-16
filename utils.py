@@ -109,7 +109,6 @@ def train_fake_critic(n_cell, T_terminal, V_array):
         truths = torch.tensor(truths, requires_grad=True)
         preds = torch.reshape(liu(np.array(keys)), (1, len(truths)))
         loss = (truths - preds).abs().mean()
-        # print(loss)
         liu_optimizer.zero_grad()
         loss.backward()
         liu_optimizer.step()
