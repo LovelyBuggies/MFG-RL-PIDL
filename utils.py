@@ -169,9 +169,9 @@ def plot_diff(fig_path=None, smooth=False):
             rho_diff_hist = pd.read_csv(f"./diff/rho-{reward}.csv")['0'].values.tolist()
             rho_diff_plot = savgol_filter(rho_diff_hist, 53, 3) if smooth else rho_diff_hist
             plt.plot(rho_diff_plot, lw=3, label=r"$|\rho^{(k)} - \rho^{(k-1)}|$", c='indianred', alpha=.8)
-            plt.xlabel("iterations", fontsize=18, labelpad=16)
+            plt.xlabel("iterations", fontsize=18, labelpad=6)
             plt.xticks(fontsize=18)
-            plt.ylabel("convergence difference", fontsize=18, labelpad=16)
+            plt.ylabel("convergence difference", fontsize=18, labelpad=6)
             plt.yticks(fontsize=18)
             plt.ylim(-.01, .11)
             plt.legend()
