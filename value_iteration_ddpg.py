@@ -9,8 +9,8 @@ def train_ddpg(option, n_cell, T_terminal, d, fake_critic, pidl, surf_plot, smoo
     delta_T = 1 / n_cell
     T = int(T_terminal / delta_T)
     params = {
-        "lwr": {"n_episode": 30, "n_train_critic": 3000, "n_train_actor": 3000, "n_train_rho_net": 3000,
-                "plot_interval": 2, "init_speed": 0.68},
+        "lwr": {"n_episode": 1500, "n_train_critic": 100, "n_train_actor": 1, "n_train_rho_net": 100,
+                    "plot_interval": 20, "init_speed": 0.68},
         "non-sep": {"n_episode": 1500, "n_train_critic": 100, "n_train_actor": 1, "n_train_rho_net": 100,
                     "plot_interval": 20, "init_speed": 0.62},
         "sep": {"n_episode": 1500, "n_train_critic": 100, "n_train_actor": 1, "n_train_rho_net": 100,

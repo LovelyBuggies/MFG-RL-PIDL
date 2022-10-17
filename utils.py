@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.signal import savgol_filter
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
@@ -137,7 +138,7 @@ def plot_3d(n_cell, T_terminal, rho, ax_name, fig_name=None):
     ax.xaxis.set_major_locator(LinearLocator(5))
     ax.xaxis.set_major_formatter(FormatStrFormatter('%.02f'))
 
-    plt.ylabel(r"$t$", fontsize=24, labelpad=20, rotation=0)
+    plt.ylabel(r"$t$", fontsize=24, labelpad=20)
     ax.set_ylim(min(t), max(t))
     ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.yaxis.set_major_locator(LinearLocator(5))
@@ -158,16 +159,21 @@ def plot_3d(n_cell, T_terminal, rho, ax_name, fig_name=None):
         plt.savefig(fig_name, bbox_inches='tight')
 
 
-def plot_diff(fig_path=None):
+def plot_diff(fig_path=None, smooth=False):
     for reward in ["lwr", "non-sep", "sep"]:
         if os.path.exists(f"./diff/u-{reward}.csv"):
-            fig, ax = plt.subplots(figsize=(6, 4))
+            fig, ax = plt.subplots(figsize=(8, 4))
             u_diff_hist = pd.read_csv(f"./diff/u-{reward}.csv")['0'].values.tolist()
-            plt.plot(u_diff_hist, lw=3, label=r"$|u^{(k)} - u^{(k-1)}|$", c='steelblue', ls='--')
+            u_diff_plot = savgol_filter(u_diff_hist, 53, 3) if smooth else u_diff_hist
+            plt.plot(u_diff_plot, lw=3, label=r"$|u^{(k)} - u^{(k-1)}|$", c='steelblue', ls='--')
             rho_diff_hist = pd.read_csv(f"./diff/rho-{reward}.csv")['0'].values.tolist()
-            plt.plot(rho_diff_hist, lw=3, label=r"$|\rho^{(k)} - \rho^{(k-1)}|$", c='indianred', alpha=.8)
-            plt.xlabel("iterations")
-            plt.ylabel("convergence difference")
+            rho_diff_plot = savgol_filter(rho_diff_hist, 53, 3) if smooth else rho_diff_hist
+            plt.plot(rho_diff_plot, lw=3, label=r"$|\rho^{(k)} - \rho^{(k-1)}|$", c='indianred', alpha=.8)
+            plt.xlabel("iterations", fontsize=18, labelpad=16)
+            plt.xticks(fontsize=18)
+            plt.ylabel("convergence difference", fontsize=18, labelpad=16)
+            plt.yticks(fontsize=18)
+            plt.ylim(-.01, .11)
             plt.legend()
             if not fig_path:
                 plt.show()
