@@ -164,10 +164,17 @@ def plot_diff(fig_path=None, smooth=False):
         if os.path.exists(f"./diff/u-{reward}.csv"):
             fig, ax = plt.subplots(figsize=(8, 4))
             u_diff_hist = pd.read_csv(f"./diff/u-{reward}.csv")['0'].values.tolist()
-            u_diff_plot = savgol_filter(u_diff_hist, 53, 3) if smooth else u_diff_hist
-            plt.plot(u_diff_plot, lw=3, label=r"$|u^{(k)} - u^{(k-1)}|$", c='steelblue', ls='--')
             rho_diff_hist = pd.read_csv(f"./diff/rho-{reward}.csv")['0'].values.tolist()
-            rho_diff_plot = savgol_filter(rho_diff_hist, 53, 3) if smooth else rho_diff_hist
+            if smooth:
+                u_diff_plot = savgol_filter([u for u in u_diff_hist], 13, 3)
+                u_diff_plot = [u if u > 0 else 0 for u in u_diff_plot]
+                rho_diff_plot = savgol_filter([rho for rho in rho_diff_hist], 13, 3)
+                rho_diff_plot = [rho if rho > 0 else 0 for rho in rho_diff_plot]
+            else:
+                u_diff_plot = u_diff_hist
+                rho_diff_plot = rho_diff_hist
+
+            plt.plot(u_diff_plot, lw=3, label=r"$|u^{(k)} - u^{(k-1)}|$", c='steelblue', ls='--')
             plt.plot(rho_diff_plot, lw=3, label=r"$|\rho^{(k)} - \rho^{(k-1)}|$", c='indianred', alpha=.8)
             plt.xlabel("iterations", fontsize=18, labelpad=6)
             plt.xticks(fontsize=18)
