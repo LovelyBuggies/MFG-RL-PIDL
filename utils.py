@@ -178,7 +178,7 @@ def plot_diff(fig_path=None, smooth=False):
             plt.plot(rho_diff_plot, lw=3, label=r"$|\rho^{(k)} - \rho^{(k-1)}|$", c='indianred', alpha=.8)
             plt.xlabel("iterations", fontsize=18, labelpad=6)
             plt.xticks(fontsize=18)
-            plt.ylabel("convergence difference", fontsize=18, labelpad=6)
+            plt.ylabel("convergence gap", fontsize=18, labelpad=6)
             plt.yticks(fontsize=18)
             plt.ylim(-.01, .11)
             plt.legend()
