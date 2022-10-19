@@ -10,17 +10,24 @@ def train_ddpg(option, n_cell, T_terminal, d, fake_critic, pidl, surf_plot, smoo
     T = int(T_terminal / delta_T)
     params = {
         "lwr": {"n_episode": 1500, "n_train_critic": 100, "n_train_actor": 1, "n_train_rho_net": 100,
-                    "plot_interval": 20, "init_speed": 0.68},
+                    "plot_interval": 20, "init_speed": 0.68,
+                    "reward": lambda speed, rho: 0.5 * (1 - speed - rho) ** 2
+                },
         "non-sep": {"n_episode": 1500, "n_train_critic": 100, "n_train_actor": 1, "n_train_rho_net": 100,
-                    "plot_interval": 20, "init_speed": 0.62},
+                    "plot_interval": 20, "init_speed": 0.62,
+                    "reward": lambda speed, rho: 0.5 * speed ** 2 + rho * speed - speed,
+                    },
         "sep": {"n_episode": 1500, "n_train_critic": 100, "n_train_actor": 1, "n_train_rho_net": 100,
-                "plot_interval": 20, "init_speed": 0.9},
+                "plot_interval": 20, "init_speed": 0.9,
+                "reward": lambda speed, rho: 0.5 * speed ** 2 + rho - speed,
+                },
     }
+    if option not in params.keys():
+        raise NotImplementedError(f'Reward {option} is not implemented.')
 
     u_hist = [params[option]["init_speed"] * np.ones((n_cell, T))]
     rho_hist = [get_rho_from_u(u_hist[0], d)]
-    if diff_plot:
-        u_diff_hist, rho_diff_hist = list(), list()
+    u_diff_hist, rho_diff_hist = list(), list()
 
     actor = Actor(2)
     actor_optimizer = torch.optim.Adam(actor.parameters(), lr=1e-3)
@@ -46,40 +53,16 @@ def train_ddpg(option, n_cell, T_terminal, d, fake_critic, pidl, surf_plot, smoo
             for t in range(T + 1):
                 keys.append([i / n_cell, t / n_cell])
                 if t != T:
-                    if i != n_cell:
-                        speed = float(actor.forward(np.array([i, t]) / n_cell))
-                        rho_i_t = float(rho_network.forward(np.array([i, t]) / n_cell))
-                        if option == 'lwr':
-                            truths.append(delta_T * 0.5 * (1 - speed - rho_i_t) ** 2 + fake_critic(
-                                np.array([i + speed, t + 1]) / n_cell))
-                        elif option == 'non-sep':
-                            truths.append(delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + fake_critic(
-                                np.array([i + speed, t + 1]) / n_cell))
-                        elif option == 'sep':
-                            truths.append(delta_T * (0.5 * speed ** 2 + rho_i_t - speed) + fake_critic(
-                                np.array([i + speed, t + 1]) / n_cell))
-                        else:
-                            raise NotImplementedError()
-                    else:
-                        speed = float(actor.forward(np.array([0, t]) / n_cell))
-                        rho_i_t = float(rho_network.forward(np.array([0, t]) / n_cell))
-                        if option == 'lwr':
-                            truths.append(delta_T * 0.5 * (1 - speed - rho_i_t) ** 2 + fake_critic(
-                                np.array([speed, t + 1]) / n_cell))
-                        elif option == 'non-sep':
-                            truths.append(delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + fake_critic(
-                                np.array([speed, t + 1]) / n_cell))
-                        elif option == 'sep':
-                            truths.append(delta_T * (0.5 * speed ** 2 + rho_i_t * speed - speed) + fake_critic(
-                                np.array([speed, t + 1]) / n_cell))
-                        else:
-                            raise NotImplementedError()
+                    i_tmp = i if i != n_cell else 0
+                    speed = float(actor.forward(np.array([i_tmp, t]) / n_cell))
+                    rho_i_t = float(rho_network.forward(np.array([i_tmp, t]) / n_cell))
+                    truths.append(delta_T * params[option]["reward"](speed, rho_i_t) + fake_critic.forward(np.array([i_tmp + speed, t + 1]) / n_cell))
                 else:
                     truths.append(0)
 
         truths = torch.tensor(truths, requires_grad=True)
         for _ in range(params[option]["n_train_critic"]):
-            preds = torch.reshape(critic(np.array(keys)), (1, len(truths)))
+            preds = torch.reshape(critic.forward(np.array(keys)), (1, len(truths)))
             critic_loss = (truths - preds).abs().mean()
             critic_optimizer.zero_grad()
             critic_loss.backward()
@@ -97,45 +80,26 @@ def train_ddpg(option, n_cell, T_terminal, d, fake_critic, pidl, surf_plot, smoo
 
         for i in range(T):
             for t in range(n_cell):
-                Vs.append(float(critic(np.array([i, t + 1]) / n_cell) - critic(np.array([i, t]) / n_cell)))
-                Vus.append(float(critic(np.array([i + 1, t + 1]) / n_cell) - critic(np.array([i, t + 1]) / n_cell)))
+                Vs.append(float(critic.forward(np.array([i, t + 1]) / n_cell) - critic.forward(np.array([i, t]) / n_cell)))
+                Vus.append(float(critic.forward(np.array([i + 1, t + 1]) / n_cell) - critic.forward(np.array([i, t + 1]) / n_cell)))
 
         states = np.array(states)
         rhos = torch.tensor(np.reshape(np.array(rhos), (n_cell * T, 1)))
         Vs = torch.tensor(np.reshape(np.array(Vs), (n_cell * T, 1)))
         Vus = torch.tensor(np.reshape(np.array(Vus), (n_cell * T, 1)))
-        if option == 'lwr':
-            for _ in range(params[option]["n_train_critic"]):
-                speeds = actor.forward(states)
-                advantages = delta_T * 0.5 * (1 - speeds - rhos) ** 2 + Vus * speeds + Vs
-                policy_loss = advantages.mean()
-                actor_optimizer.zero_grad()
-                policy_loss.backward()
-                actor_optimizer.step()
-        elif option == 'non-sep':
-            for _ in range(params[option]["n_train_critic"]):
-                speeds = actor.forward(states)
-                advantages = delta_T * (0.5 * speeds ** 2 + rhos * speeds - speeds) + Vus * speeds + Vs
-                policy_loss = advantages.mean()
-                actor_optimizer.zero_grad()
-                policy_loss.backward()
-                actor_optimizer.step()
-        elif option == 'sep':
-            for _ in range(params[option]["n_train_critic"]):
-                speeds = actor.forward(states)
-                advantages = delta_T * (0.5 * speeds ** 2 + rhos - speeds) + Vus * speeds + Vs
-                policy_loss = advantages.mean()
-                actor_optimizer.zero_grad()
-                policy_loss.backward()
-                actor_optimizer.step()
-        else:
-            raise NotImplementedError()
+        for _ in range(params[option]["n_train_critic"]):
+            speeds = actor.forward(states)
+            advantages = delta_T * params[option]["reward"](speeds, rhos) + Vus * speeds + Vs
+            policy_loss = advantages.mean()
+            actor_optimizer.zero_grad()
+            policy_loss.backward()
+            actor_optimizer.step()
 
         # train rho net
         u = np.zeros((n_cell, T))
         for i in range(n_cell):
             for t in range(T):
-                u[i, t] = actor(np.array([i, t]) / n_cell)
+                u[i, t] = actor.forward(np.array([i, t]) / n_cell)
                 rho[i, t] = rho_network(np.array([i, t]) / n_cell)
 
         u_hist.append(u)
@@ -157,7 +121,7 @@ def train_ddpg(option, n_cell, T_terminal, d, fake_critic, pidl, surf_plot, smoo
                     rho_plot = np.zeros((n_cell * 4, T * 4))
                     for i in range(n_cell * 4):
                         for t in range(T * 4):
-                            u_plot[i, t] = actor(np.array([i, t]) / n_cell / 4)
+                            u_plot[i, t] = actor.forward(np.array([i, t]) / n_cell / 4)
                             rho_plot[i, t] = rho_network(np.array([i, t]) / n_cell / 4)
 
                     plot_3d(n_cell * 4, T_terminal, u_plot, "u", f"./fig/u/{it}.pdf")

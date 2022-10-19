@@ -5,7 +5,7 @@ from utils import plot_diff
 
 
 if __name__ == '__main__':
-    n_cell = 16
+    n_cell = 8
     T_terminal = 1
     options = ["lwr", "non-sep", "sep"]
     option = options[0]
