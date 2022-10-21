@@ -50,30 +50,6 @@ def get_rho_network_from_u(n_cell, T_terminal, u, d, rho_network, rho_optimizer,
 
     return rho_network
 
-def get_rho_network_from_u_lwr(n_cell, T_terminal, u, d, rho_network, rho_optimizer, n_iterations=100):
-    states, rho_values = list(), list()
-    T = n_cell * T_terminal
-    for t in range(T):
-        for i in range(n_cell):
-            states.append([i / n_cell, t / n_cell])
-            if t == 0:
-                rho_values.append(d[i])
-            else:
-                if i == 0:
-                    rho_values.append(1 - u[i, t])
-                else:
-                    rho_values.append(1 - u[i, t])
-
-    rho_values = torch.tensor(np.array(rho_values))
-    for _ in range(n_iterations):
-        preds = torch.reshape(rho_network(np.array(states)), (1, len(rho_values)))
-        rho_loss = (rho_values - preds).abs().mean()
-        rho_optimizer.zero_grad()
-        rho_loss.backward()
-        rho_optimizer.step()
-
-    return rho_network
-
 
 def train_rho_network_n_step(n_cell, T_terminal, rho, rho_network, rho_optimizer, n_iterations=1):
     truths, keys = list(), list()
