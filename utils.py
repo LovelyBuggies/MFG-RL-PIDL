@@ -26,7 +26,7 @@ def get_rho_from_u(u, d):
     return rho
 
 
-def get_rho_network_from_u(n_cell, T_terminal, u, d, rho_network, rho_optimizer, n_iterations=100):
+def get_rho_network_from_u(n_cell, T_terminal, actor, d, rho_network, rho_optimizer, n_iterations=100, physical_step=1):
     states, rho_values = list(), list()
     T = n_cell * T_terminal
     for t in range(T):
@@ -36,9 +36,17 @@ def get_rho_network_from_u(n_cell, T_terminal, u, d, rho_network, rho_optimizer,
                 rho_values.append(d[i])
             else:
                 if i == 0:
-                    rho_values.append(float(rho_network(np.array([i, t - 1]) / n_cell) + rho_network(np.array([n_cell - 1, t - 1]) / n_cell) * u[-1, t - 1] - rho_network(np.array([i, t - 1]) / n_cell) * u[i, t - 1]))
+                    rho_values.append(
+                        float(rho_network(np.array([i, t - physical_step]) / n_cell) +
+                              rho_network(np.array([n_cell - physical_step, t - physical_step]) / n_cell) * actor.forward(np.array([n_cell - physical_step, t - physical_step]) / n_cell) -
+                              rho_network(np.array([i, t - physical_step]) / n_cell) * actor.forward(np.array([i, t - physical_step]) / n_cell))
+                    )
                 else:
-                    rho_values.append(float(rho_network(np.array([i, t - 1]) / n_cell) + rho_network(np.array([i - 1, t - 1]) / n_cell) * u[i - 1, t - 1] - rho_network(np.array([i, t - 1]) / n_cell) * u[i, t - 1]))
+                    rho_values.append(
+                        float(rho_network(np.array([i, t - 1]) / n_cell) +
+                              rho_network(np.array([i - 1, t - 1]) / n_cell) * actor.forward(np.array([i - 1, t - 1]) / n_cell) -
+                              rho_network(np.array([i, t - 1]) / n_cell) * actor.forward(np.array([i, t - 1]) / n_cell))
+                    )
 
     rho_values = torch.tensor(np.array(rho_values))
     for _ in range(n_iterations):

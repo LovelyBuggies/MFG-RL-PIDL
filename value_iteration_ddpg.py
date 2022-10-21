@@ -110,7 +110,7 @@ def train_ddpg(option, n_cell, T_terminal, d, fake_critic, pidl, surf_plot, smoo
             rho_diff_hist.append(np.mean(abs(rho_hist[-1] - rho_hist[-2])))
 
         if pidl:
-            rho_network = get_rho_network_from_u(n_cell, T_terminal, u, d, rho_network, rho_optimizer, n_iterations=params[option]["n_train_rho_net"])
+            rho_network = get_rho_network_from_u(n_cell, T_terminal, actor, d, rho_network, rho_optimizer, n_iterations=params[option]["n_train_rho_net"], physical_step=1/8)
         else:
             rho_network = train_rho_network_n_step(n_cell, T_terminal, rho, rho_network, rho_optimizer, n_iterations=params[option]["n_train_rho_net"])
 

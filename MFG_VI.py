@@ -9,7 +9,7 @@ if __name__ == '__main__':
     T_terminal = 1
     options = ["lwr", "non-sep", "sep"]
     option = options[0]
-    d = np.array(pd.read_csv(f'data/init_density/{n_cell}.csv').values).flatten('F')
-    train_ddpg(option, n_cell, T_terminal, d, fake_critic=True, pidl=True, surf_plot=True, smooth_plot=False, diff_plot=False)
+    d = np.array(pd.read_csv(f'data/init_rho_{n_cell}.csv').values).flatten('F')
+    train_ddpg(option, n_cell, T_terminal, d, fake_critic=True, pidl=True, surf_plot=True, smooth_plot=True, diff_plot=True)
 
-    # plot_diff("./diff/", smooth=False)
+    plot_diff("./diff/", smooth=False)
