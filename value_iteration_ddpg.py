@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 import torch
-from utils import train_fake_critic, get_rho_from_u, get_rho_network_from_u, train_rho_network_n_step, plot_3d, plot_diff
+import random
+from utils import train_critic_from_V, get_rho_from_u, get_rho_network_from_actor, train_rho_network_n_step, plot_3d, plot_diff
 from model import Critic, Actor, RhoNetwork
 
 
@@ -9,15 +10,15 @@ def train_ddpg(option, n_cell, T_terminal, d, fake_critic, pidl, surf_plot, smoo
     delta_T = 1 / n_cell
     T = int(T_terminal / delta_T)
     params = {
-        "lwr": {"n_episode": 1500, "n_train_critic": 100, "n_train_actor": 1, "n_train_rho_net": 100,
-                    "plot_interval": 20, "init_speed": 0.68,
+        "lwr": {"n_episode": 500, "n_train_critic": 100, "n_train_actor": 1, "n_train_rho_net": 100,
+                    "plot_interval": 20, "init_speed": 0.3,
                     "reward": lambda speed, rho: 0.5 * (1 - speed - rho) ** 2
                 },
-        "non-sep": {"n_episode": 1500, "n_train_critic": 100, "n_train_actor": 1, "n_train_rho_net": 100,
-                    "plot_interval": 20, "init_speed": 0.62,
+        "non-sep": {"n_episode": 500, "n_train_critic": 100, "n_train_actor": 1, "n_train_rho_net": 100,
+                    "plot_interval": 20, "init_speed": 0.5,
                     "reward": lambda speed, rho: 0.5 * speed ** 2 + rho * speed - speed,
                     },
-        "sep": {"n_episode": 1500, "n_train_critic": 100, "n_train_actor": 1, "n_train_rho_net": 100,
+        "sep": {"n_episode": 500, "n_train_critic": 100, "n_train_actor": 1, "n_train_rho_net": 100,
                 "plot_interval": 20, "init_speed": 0.9,
                 "reward": lambda speed, rho: 0.5 * speed ** 2 + rho - speed,
                 },
@@ -27,13 +28,16 @@ def train_ddpg(option, n_cell, T_terminal, d, fake_critic, pidl, surf_plot, smoo
 
     u_hist = [params[option]["init_speed"] * np.ones((n_cell, T))]
     rho_hist = [get_rho_from_u(u_hist[0], d)]
-    u_diff_hist, rho_diff_hist = list(), list()
+    u_loss_hist, rho_loss_hist = list(), list()
+    u_gap_hist, rho_gap_hist = list(), list()
+    u_res = np.loadtxt(f"data/u-{option}.txt")
+    rho_res = np.loadtxt(f"data/rho-{option}.txt")
 
     actor = Actor(2)
     actor_optimizer = torch.optim.Adam(actor.parameters(), lr=1e-3)
 
     if fake_critic:
-        fake_critic = train_fake_critic(n_cell, T_terminal, np.zeros((n_cell + 1, T + 1)))
+        fake_critic = train_critic_from_V(n_cell, T_terminal, np.zeros((n_cell + 1, T + 1)))
     else:
         fake_critic = Critic(2)
 
@@ -106,11 +110,13 @@ def train_ddpg(option, n_cell, T_terminal, d, fake_critic, pidl, surf_plot, smoo
         rho_hist.append(get_rho_from_u(u, d))
         u = np.array(u_hist).mean(axis=0)
         if diff_plot:
-            u_diff_hist.append(np.mean(abs(u_hist[-1] - u_hist[-2])))
-            rho_diff_hist.append(np.mean(abs(rho_hist[-1] - rho_hist[-2])))
+            u_loss_hist.append(np.mean(abs(u - u_res)))
+            rho_loss_hist.append(np.mean(abs(rho - rho_res)))
+            u_gap_hist.append(np.mean(abs(u_hist[-1] - u_hist[-2])))
+            rho_gap_hist.append(np.mean(abs(rho_hist[-1] - rho_hist[-2])))
 
         if pidl:
-            rho_network = get_rho_network_from_u(n_cell, T_terminal, actor, d, rho_network, rho_optimizer, n_iterations=params[option]["n_train_rho_net"], physical_step=1/8)
+            rho_network = get_rho_network_from_actor(n_cell, T_terminal, actor, d, rho_network, rho_optimizer, n_iterations=params[option]["n_train_rho_net"], physical_step=random.uniform(0.9, 1))
         else:
             rho_network = train_rho_network_n_step(n_cell, T_terminal, rho, rho_network, rho_optimizer, n_iterations=params[option]["n_train_rho_net"])
 
@@ -134,10 +140,8 @@ def train_ddpg(option, n_cell, T_terminal, d, fake_critic, pidl, surf_plot, smoo
             raise ValueError("Using smooth plot when surf plot is True")
 
     if diff_plot:
-        u_diff_df = pd.DataFrame(u_diff_hist)
-        u_diff_df.to_csv(f"./diff/u-{option}.csv")
-        rho_diff_df = pd.DataFrame(rho_diff_hist)
-        rho_diff_df.to_csv(f"./diff/rho-{option}.csv")
-        plot_diff()
-
-    return
+        pd.DataFrame(u_gap_hist).to_csv(f"./diff/u-gap-{option}.csv")
+        pd.DataFrame(rho_gap_hist).to_csv(f"./diff/rho-gap-{option}.csv")
+        pd.DataFrame(u_loss_hist).to_csv(f"./diff/u-loss-{option}.csv")
+        pd.DataFrame(rho_loss_hist).to_csv(f"./diff/rho-loss-{option}.csv")
+        plot_diff("./diff/", smooth=False)

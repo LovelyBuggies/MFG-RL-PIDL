@@ -6,7 +6,57 @@ from matplotlib.ticker import LinearLocator, FormatStrFormatter
 import pandas as pd
 import torch
 import os
-from model import Critic
+from model import Critic, Actor
+
+
+def train_critic_from_V(n_cell, T_terminal, V):
+    T = n_cell * T_terminal
+    truths = []
+    keys = []
+
+    critic = Critic(2)
+    critic_optimizer = torch.optim.Adam(critic.parameters(), lr=1e-3)
+
+    for i in range(n_cell + 1):
+        for t in range(T + 1):
+            truths.append(V[i, t])
+            keys.append(np.array([i, t]) / n_cell)
+
+    for _ in range(1000):
+        truths = torch.tensor(truths, requires_grad=True)
+        preds = torch.reshape(critic(np.array(keys)), (1, len(truths)))
+        loss = (truths - preds).abs().mean()
+        critic_optimizer.zero_grad()
+        loss.backward()
+        critic_optimizer.step()
+
+    pred_V = np.zeros((n_cell + 1, T + 1))
+    for i in range(n_cell + 1):
+        for t in range(T + 1):
+            pred_V[i, t] = critic(np.array([i, t]) / n_cell)
+
+    return critic
+
+
+def train_actor_from_u(u):
+    actor = Actor(2)
+    actor_optimizer = torch.optim.Adam(actor.parameters(), lr=1e-3)
+    truths = []
+    keys = []
+    for i in range(8):
+        for j in range(8):
+            truths.append(u[i, j])
+            keys.append(np.array([i, j]) / 8)
+
+    truths = torch.tensor(truths, requires_grad=True)
+    for _ in range(5000):
+        preds = torch.reshape(actor(np.array(keys)), (1, len(truths)))
+        loss = (truths - preds).abs().mean()
+        actor_optimizer.zero_grad()
+        loss.backward()
+        actor_optimizer.step()
+
+    return actor
 
 
 def get_rho_from_u(u, d):
@@ -26,7 +76,32 @@ def get_rho_from_u(u, d):
     return rho
 
 
-def get_rho_network_from_u(n_cell, T_terminal, actor, d, rho_network, rho_optimizer, n_iterations=100, physical_step=1):
+def get_rho_network_from_u(n_cell, T_terminal, u, d, rho_network, rho_optimizer, n_iterations=100):
+    states, rho_values = list(), list()
+    T = n_cell * T_terminal
+    for t in range(T):
+        for i in range(n_cell):
+            states.append([i / n_cell, t / n_cell])
+            if t == 0:
+                rho_values.append(d[i])
+            else:
+                if i == 0:
+                    rho_values.append(float(rho_network(np.array([i, t - 1]) / n_cell) + rho_network(np.array([n_cell - 1, t - 1]) / n_cell) * u[-1, t - 1] - rho_network(np.array([i, t - 1]) / n_cell) * u[i, t - 1]))
+                else:
+                    rho_values.append(float(rho_network(np.array([i, t - 1]) / n_cell) + rho_network(np.array([i - 1, t - 1]) / n_cell) * u[i - 1, t - 1] - rho_network(np.array([i, t - 1]) / n_cell) * u[i, t - 1]))
+
+    rho_values = torch.tensor(np.array(rho_values))
+    for _ in range(n_iterations):
+        preds = torch.reshape(rho_network(np.array(states)), (1, len(rho_values)))
+        rho_loss = (rho_values - preds).abs().mean()
+        rho_optimizer.zero_grad()
+        rho_loss.backward()
+        rho_optimizer.step()
+
+    return rho_network
+
+
+def get_rho_network_from_actor(n_cell, T_terminal, actor, d, rho_network, rho_optimizer, n_iterations=100, physical_step=1):
     states, rho_values = list(), list()
     T = n_cell * T_terminal
     for t in range(T):
@@ -43,9 +118,42 @@ def get_rho_network_from_u(n_cell, T_terminal, actor, d, rho_network, rho_optimi
                     )
                 else:
                     rho_values.append(
-                        float(rho_network(np.array([i, t - 1]) / n_cell) +
-                              rho_network(np.array([i - 1, t - 1]) / n_cell) * actor.forward(np.array([i - 1, t - 1]) / n_cell) -
-                              rho_network(np.array([i, t - 1]) / n_cell) * actor.forward(np.array([i, t - 1]) / n_cell))
+                        float(rho_network(np.array([i, t - physical_step]) / n_cell) +
+                              rho_network(np.array([i - physical_step, t - physical_step]) / n_cell) * actor.forward(np.array([i - physical_step, t - physical_step]) / n_cell) -
+                              rho_network(np.array([i, t - physical_step]) / n_cell) * actor.forward(np.array([i, t - physical_step]) / n_cell))
+                    )
+
+    rho_values = torch.tensor(np.array(rho_values))
+    for _ in range(n_iterations):
+        preds = torch.reshape(rho_network(np.array(states)), (1, len(rho_values)))
+        rho_loss = (rho_values - preds).abs().mean()
+        rho_optimizer.zero_grad()
+        rho_loss.backward()
+        rho_optimizer.step()
+
+    return rho_network
+
+
+def get_rho_network_from_half(n_cell, T_terminal, d, rho_network, rho_optimizer, n_iterations=100, physical_step=1):
+    states, rho_values = list(), list()
+    T = n_cell * T_terminal
+    for t in range(T):
+        for i in range(n_cell):
+            states.append([i / n_cell, t / n_cell])
+            if t == 0:
+                rho_values.append(d[i])
+            else:
+                if i == 0:
+                    rho_values.append(
+                        float(rho_network(np.array([i, t - physical_step]) / n_cell) +
+                              rho_network(np.array([n_cell - physical_step, t - physical_step]) / n_cell) * 0.5 -
+                              rho_network(np.array([i, t - physical_step]) / n_cell) * 0.5)
+                    )
+                else:
+                    rho_values.append(
+                        float(rho_network(np.array([i, t - physical_step]) / n_cell) +
+                              rho_network(np.array([i - physical_step, t - physical_step]) / n_cell) * 0.5 -
+                              rho_network(np.array([i, t - physical_step]) / n_cell) * 0.5)
                     )
 
     rho_values = torch.tensor(np.array(rho_values))
@@ -75,35 +183,6 @@ def train_rho_network_n_step(n_cell, T_terminal, rho, rho_network, rho_optimizer
         rho_optimizer.step()
 
     return rho_network
-
-
-def train_fake_critic(n_cell, T_terminal, V_array):
-    T = n_cell * T_terminal
-    truths = []
-    keys = []
-
-    liu = Critic(2)
-    liu_optimizer = torch.optim.Adam(liu.parameters(), lr=1e-3)
-
-    for i in range(n_cell + 1):
-        for t in range(T + 1):
-            truths.append(V_array[i, t])
-            keys.append(np.array([i, t]) / n_cell)
-
-    for _ in range(1000):
-        truths = torch.tensor(truths, requires_grad=True)
-        preds = torch.reshape(liu(np.array(keys)), (1, len(truths)))
-        loss = (truths - preds).abs().mean()
-        liu_optimizer.zero_grad()
-        loss.backward()
-        liu_optimizer.step()
-
-    pred_V = np.zeros((n_cell + 1, T + 1))
-    for i in range(n_cell + 1):
-        for t in range(T + 1):
-            pred_V[i, t] = liu(np.array([i, t]) / n_cell)
-
-    return liu
 
 
 def plot_3d(n_cell, T_terminal, rho, ax_name, fig_name=None):
@@ -144,11 +223,11 @@ def plot_3d(n_cell, T_terminal, rho, ax_name, fig_name=None):
 
 
 def plot_diff(fig_path=None, smooth=False):
-    for reward in ["lwr", "non-sep", "sep"]:
-        if os.path.exists(f"./diff/u-{reward}.csv"):
+    for option in ["lwr", "non-sep", "sep"]:
+        if os.path.exists(f"./diff/u-gap-{option}.csv"):
             fig, ax = plt.subplots(figsize=(8, 4))
-            u_diff_hist = pd.read_csv(f"./diff/u-{reward}.csv")['0'].values.tolist()
-            rho_diff_hist = pd.read_csv(f"./diff/rho-{reward}.csv")['0'].values.tolist()
+            u_diff_hist = pd.read_csv(f"./diff/u-gap-{option}.csv")['0'].values.tolist()
+            rho_diff_hist = pd.read_csv(f"./diff/rho-gap-{option}.csv")['0'].values.tolist()
             if smooth:
                 u_diff_plot = savgol_filter([u for u in u_diff_hist], 13, 3)
                 u_diff_plot = [u if u > 0 else 0 for u in u_diff_plot]
@@ -169,4 +248,30 @@ def plot_diff(fig_path=None, smooth=False):
             if not fig_path:
                 plt.show()
             else:
-                plt.savefig(f"{fig_path}/diff_{reward}.pdf", bbox_inches='tight')
+                plt.savefig(f"{fig_path}/rl_gap_{option}.pdf", bbox_inches='tight')
+
+        if os.path.exists(f"./diff/u-loss-{option}.csv"):
+            fig, ax = plt.subplots(figsize=(8, 4))
+            u_diff_hist = pd.read_csv(f"./diff/u-loss-{option}.csv")['0'].values.tolist()
+            rho_diff_hist = pd.read_csv(f"./diff/rho-loss-{option}.csv")['0'].values.tolist()
+            if smooth:
+                u_diff_plot = savgol_filter([u for u in u_diff_hist], 13, 3)
+                u_diff_plot = [u if u > 0 else 0 for u in u_diff_plot]
+                rho_diff_plot = savgol_filter([rho for rho in rho_diff_hist], 13, 3)
+                rho_diff_plot = [rho if rho > 0 else 0 for rho in rho_diff_plot]
+            else:
+                u_diff_plot = u_diff_hist
+                rho_diff_plot = rho_diff_hist
+
+            plt.plot(u_diff_plot, lw=3, label=r"$|u^{(k)} - u^{(k-1)}|$", c='steelblue', ls='--')
+            plt.plot(rho_diff_plot, lw=3, label=r"$|\rho^{(k)} - \rho^{(k-1)}|$", c='indianred', alpha=.8)
+            plt.xlabel("iterations", fontsize=18, labelpad=6)
+            plt.xticks(fontsize=18)
+            plt.ylabel("loss", fontsize=18, labelpad=6)
+            plt.yticks(fontsize=18)
+            plt.ylim(-.01, .1)
+            plt.legend()
+            if not fig_path:
+                plt.show()
+            else:
+                plt.savefig(f"{fig_path}/rl_loss_{option}.pdf", bbox_inches='tight')
