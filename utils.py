@@ -244,7 +244,7 @@ def plot_diff(fig_path=None, smooth=False):
             plt.ylabel("convergence gap", fontsize=18, labelpad=6)
             plt.yticks(fontsize=18)
             plt.ylim(-.01, .11)
-            plt.legend()
+            plt.legend(prop={'size': 16})
             if not fig_path:
                 plt.show()
             else:
@@ -263,14 +263,14 @@ def plot_diff(fig_path=None, smooth=False):
                 u_diff_plot = u_diff_hist
                 rho_diff_plot = rho_diff_hist
 
-            plt.plot(u_diff_plot, lw=3, label=r"$|u^{(k)} - u^{(k-1)}|$", c='steelblue', ls='--')
-            plt.plot(rho_diff_plot, lw=3, label=r"$|\rho^{(k)} - \rho^{(k-1)}|$", c='indianred', alpha=.8)
+            plt.plot(u_diff_plot, lw=3, label=r"$|u^{(k)} - u^*|$", c='steelblue', ls='--')
+            plt.plot(rho_diff_plot, lw=3, label=r"$|\rho^{(k)} - \rho^*|$", c='indianred', alpha=.8)
             plt.xlabel("iterations", fontsize=18, labelpad=6)
             plt.xticks(fontsize=18)
             plt.ylabel("loss", fontsize=18, labelpad=6)
             plt.yticks(fontsize=18)
             plt.ylim(-.01, .1)
-            plt.legend()
+            plt.legend(prop={'size': 16})
             if not fig_path:
                 plt.show()
             else:
