@@ -11,4 +11,3 @@ if __name__ == '__main__':
     d = np.loadtxt(f"data/rho-{option}.txt")[:, 0].flatten('F')
     train_ddpg(option, n_cell, T_terminal, d, fake_critic=True, pidl=True, surf_plot=True, smooth_plot=False,
                       diff_plot=True)
-    # plot_diff("./diff/", smooth=False)
