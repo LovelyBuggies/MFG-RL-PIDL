@@ -2,29 +2,42 @@ import numpy as np
 import pandas as pd
 import torch
 import random
-from utils import train_critic_from_V, get_rho_from_u, get_rho_network_from_actor, train_rho_network_n_step, plot_3d, plot_diff
+from utils import train_critic_from_V, get_rho_from_u, get_rho_network_from_actor, train_rho_network_n_step, plot_3d, \
+    plot_diff
 from model import Critic, Actor, RhoNetwork
 
 
-def train_ddpg(option, n_cell, T_terminal, d, fake_critic, pidl, surf_plot, smooth_plot, diff_plot):
+def train_ddpg(alg, option, n_cell, T_terminal, d, fake_critic, pidl_rho_network, surf_plot, smooth_plot, diff_plot):
     delta_T = 1 / n_cell
     T = int(T_terminal / delta_T)
-    params = {
-        "lwr": {"n_episode": 500, "n_train_critic": 100, "n_train_actor": 1, "n_train_rho_net": 100,
-                    "plot_interval": 20, "init_speed": 0.3,
-                    "reward": lambda speed, rho: 0.5 * (1 - speed - rho) ** 2
-                },
-        "non-sep": {"n_episode": 500, "n_train_critic": 100, "n_train_actor": 1, "n_train_rho_net": 100,
-                    "plot_interval": 20, "init_speed": 0.5,
-                    "reward": lambda speed, rho: 0.5 * speed ** 2 + rho * speed - speed,
-                    },
-        "sep": {"n_episode": 500, "n_train_critic": 100, "n_train_actor": 1, "n_train_rho_net": 100,
-                "plot_interval": 20, "init_speed": 0.9,
-                "reward": lambda speed, rho: 0.5 * speed ** 2 + rho - speed,
-                },
-    }
-    if option not in params.keys():
+
+    if alg not in ["pidl", "rl+pidl"]:
+        raise NotImplementedError(f'Algorithm {alg} is not implemented.')
+    if option not in ["lwr", "non-sep", "sep"]:
         raise NotImplementedError(f'Reward {option} is not implemented.')
+    params = {
+        "lwr": {
+            "n_episode": 200 if alg == "pidl" else 500, "n_train_critic": 100,
+            "n_train_actor": 1, "n_train_rho_net": 100,
+            "plot_interval": 20, "init_speed": 0.8,
+            "reward": lambda speed, rho: 0.5 * (1 - speed - rho) ** 2,
+            "optimal_speed": lambda a, b, rho: min(max(1 - rho, 0), 1),
+        },
+        "non-sep": {
+            "n_episode": 300 if alg == "pidl" else 500, "n_train_critic": 100,
+            "n_train_actor": 1, "n_train_rho_net": 100,
+            "plot_interval": 20, "init_speed": 0.5,
+            "reward": lambda speed, rho: 0.5 * speed ** 2 + rho * speed - speed,
+            "optimal_speed": lambda a, b, rho: min(max((a - b) / delta_T + 1 - rho, 0), 1),
+        },
+        "sep": {
+            "n_episode": 200 if alg == "pidl" else 500, "n_train_critic": 100,
+            "n_train_actor": 1, "n_train_rho_net": 100,
+            "plot_interval": 20, "init_speed": 0.3,
+            "reward": lambda speed, rho: 0.5 * speed ** 2 + rho - speed,
+            "optimal_speed": lambda a, b, rho: min(max((a - b) / delta_T + 1, 0), 1),
+        },
+    }
 
     u_hist = [params[option]["init_speed"] * np.ones((n_cell, T))]
     rho_hist = [get_rho_from_u(u_hist[0], d)]
@@ -49,7 +62,7 @@ def train_ddpg(option, n_cell, T_terminal, d, fake_critic, pidl, surf_plot, smoo
     rho = rho_hist[0]
     rho_network = train_rho_network_n_step(n_cell, T_terminal, rho, rho_network, rho_optimizer, n_iterations=1)
 
-    for it in range(params[option]["n_episode"]):
+    for it in range(params[option]["n_episode"] + 1):
         print(it)
         # train critic
         keys, truths = list(), list()
@@ -58,9 +71,19 @@ def train_ddpg(option, n_cell, T_terminal, d, fake_critic, pidl, surf_plot, smoo
                 keys.append([i / n_cell, t / n_cell])
                 if t != T:
                     i_tmp = i if i != n_cell else 0
-                    speed = float(actor.forward(np.array([i_tmp, t]) / n_cell))
                     rho_i_t = float(rho_network.forward(np.array([i_tmp, t]) / n_cell))
-                    truths.append(delta_T * params[option]["reward"](speed, rho_i_t) + fake_critic.forward(np.array([i_tmp + speed, t + 1]) / n_cell))
+                    if alg == "pidl":
+                        speed = float(params[option]["optimal_speed"](
+                            critic(np.array([i, t + 1]) / n_cell),
+                            critic(np.array([0, t + 1]) / n_cell),
+                            rho_i_t
+                        ))
+                    else:
+                        speed = float(actor.forward(np.array([i_tmp, t]) / n_cell))
+                    truths.append(
+                        delta_T * params[option]["reward"](speed, rho_i_t) + \
+                        fake_critic.forward(np.array([i_tmp + speed, t + 1]) / n_cell)
+                    )
                 else:
                     truths.append(0)
 
@@ -84,8 +107,10 @@ def train_ddpg(option, n_cell, T_terminal, d, fake_critic, pidl, surf_plot, smoo
 
         for i in range(T):
             for t in range(n_cell):
-                Vs.append(float(critic.forward(np.array([i, t + 1]) / n_cell) - critic.forward(np.array([i, t]) / n_cell)))
-                Vus.append(float(critic.forward(np.array([i + 1, t + 1]) / n_cell) - critic.forward(np.array([i, t + 1]) / n_cell)))
+                Vs.append(
+                    float(critic.forward(np.array([i, t + 1]) / n_cell) - critic.forward(np.array([i, t]) / n_cell)))
+                Vus.append(float(
+                    critic.forward(np.array([i + 1, t + 1]) / n_cell) - critic.forward(np.array([i, t + 1]) / n_cell)))
 
         states = np.array(states)
         rhos = torch.tensor(np.reshape(np.array(rhos), (n_cell * T, 1)))
@@ -115,10 +140,13 @@ def train_ddpg(option, n_cell, T_terminal, d, fake_critic, pidl, surf_plot, smoo
             u_gap_hist.append(np.mean(abs(u_hist[-1] - u_hist[-2])))
             rho_gap_hist.append(np.mean(abs(rho_hist[-1] - rho_hist[-2])))
 
-        if pidl:
-            rho_network = get_rho_network_from_actor(n_cell, T_terminal, actor, d, rho_network, rho_optimizer, n_iterations=params[option]["n_train_rho_net"], physical_step=random.uniform(0., 1))
+        if pidl_rho_network:
+            rho_network = get_rho_network_from_actor(n_cell, T_terminal, actor, d, rho_network, rho_optimizer,
+                                                     n_iterations=params[option]["n_train_rho_net"],
+                                                     physical_step=random.uniform(0.9, 1))
         else:
-            rho_network = train_rho_network_n_step(n_cell, T_terminal, rho, rho_network, rho_optimizer, n_iterations=params[option]["n_train_rho_net"])
+            rho_network = train_rho_network_n_step(n_cell, T_terminal, rho, rho_network, rho_optimizer,
+                                                   n_iterations=params[option]["n_train_rho_net"])
 
         if surf_plot:
             if it % params[option]["plot_interval"] == 0:
