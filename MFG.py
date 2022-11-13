@@ -36,5 +36,5 @@ if __name__ == '__main__':
         u = np.array(u_hist).mean(axis=0)
         beta = np.array(beta_hist).mean(axis=0)
         rho = network_loading(model, u, beta, demand, n_cell, T)
-
-    plot_4d(n_cell, T_terminal, rho, (0, 4, 3), None)
+        if loop % 10 == 0:
+            plot_4d(n_cell, T_terminal, rho, (0, 4, 3), f"./fig/rho/{loop}.pdf")

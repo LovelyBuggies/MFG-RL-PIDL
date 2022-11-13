@@ -3,6 +3,29 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 import csv
+import torch
+
+
+class RhoNetwork(nn.Module):
+    def __init__(self, state_dim):
+        super().__init__()
+        self.model = nn.Sequential(
+            nn.Linear(state_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, 16),
+            nn.ReLU(),
+            nn.Linear(16, 8),
+            nn.ReLU(),
+            nn.Linear(8, 1)
+        )
+
+    def forward(self, x):
+        x = self.model(torch.from_numpy(x).float())
+        x = torch.tanh(x)
+        x = (x + 1) / 2
+        return x
 
 
 def get_rho_from_u(u, d):
