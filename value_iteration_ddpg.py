@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import torch
 import random
-from utils import train_critic_from_V, get_rho_from_u, get_rho_network_from_actor, train_rho_network_n_step, plot_3d, \
-    plot_diff
+from utils import get_rho_from_u, train_critic_from_V, train_rho_network_from_rho, get_rho_network_from_actor
+from utils import plot_3d, plot_diff
 from model import Critic, Actor, RhoNetwork
 
 
@@ -60,7 +60,7 @@ def train_ddpg(alg, option, n_cell, T_terminal, d, fake_critic, pidl_rho_network
     rho_network = RhoNetwork(2)
     rho_optimizer = torch.optim.Adam(rho_network.parameters(), lr=1e-3)
     rho = rho_hist[0]
-    rho_network = train_rho_network_n_step(n_cell, T_terminal, rho, rho_network, rho_optimizer, n_iterations=1)
+    rho_network = train_rho_network_from_rho(n_cell, T_terminal, rho, rho_network, rho_optimizer, n_iterations=1)
 
     for it in range(params[option]["n_episode"] + 1):
         print(it)
@@ -145,7 +145,7 @@ def train_ddpg(alg, option, n_cell, T_terminal, d, fake_critic, pidl_rho_network
                                                      n_iterations=params[option]["n_train_rho_net"],
                                                      physical_step=random.uniform(0.9, 1))
         else:
-            rho_network = train_rho_network_n_step(n_cell, T_terminal, rho, rho_network, rho_optimizer,
+            rho_network = train_rho_network_from_rho(n_cell, T_terminal, rho, rho_network, rho_optimizer,
                                                    n_iterations=params[option]["n_train_rho_net"])
 
         if surf_plot:
