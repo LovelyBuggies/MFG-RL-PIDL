@@ -4,6 +4,7 @@ from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 import csv
 import torch
+from torch import nn
 
 
 class RhoNetwork(nn.Module):
