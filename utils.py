@@ -220,7 +220,7 @@ def plot_diff(fig_path=None, smooth=False):
             if not fig_path:
                 plt.show()
             else:
-                plt.savefig(f"{fig_path}/rl_gap_{option}.pdf", bbox_inches='tight')
+                plt.savefig(f"{fig_path}/pidl_gap_{option}.pdf", bbox_inches='tight')
 
         if os.path.exists(f"./diff/u-loss-{option}.csv"):
             fig, ax = plt.subplots(figsize=(8, 4))
@@ -246,4 +246,29 @@ def plot_diff(fig_path=None, smooth=False):
             if not fig_path:
                 plt.show()
             else:
-                plt.savefig(f"{fig_path}/rl_loss_{option}.pdf", bbox_inches='tight')
+                plt.savefig(f"{fig_path}/pidl_loss_{option}.pdf", bbox_inches='tight')
+
+        if os.path.exists(f"./diff/u-exploit-{option}.csv"):
+            fig, ax = plt.subplots(figsize=(8, 4))
+            u_exploit_gap_hist = pd.read_csv(f"./diff/u-exploit-{option}.csv")['0'].values.tolist()
+            rho_exploit_gap_hist = pd.read_csv(f"./diff/rho-exploit-{option}.csv")['0'].values.tolist()
+            if smooth:
+                u_exploit_gap_hist_plot = savgol_filter([u for u in u_exploit_gap_hist], 13, 3)
+                u_exploit_gap_hist_plot = [u if u > 0 else 0 for u in u_exploit_gap_hist_plot]
+                rho_exploit_gap_hist_plot = savgol_filter([rho for rho in rho_exploit_gap_hist], 13, 3)
+                rho_exploit_gap_hist_plot = [rho if rho > 0 else 0 for rho in rho_exploit_gap_hist_plot]
+            else:
+                u_exploit_gap_hist_plot = u_exploit_gap_hist
+                rho_exploit_gap_hist_plot = rho_exploit_gap_hist
+
+            plt.plot(u_exploit_gap_hist_plot, lw=3, label=r"$|u^{(i)} - {u^{(i)}}^*|$", c='steelblue', ls='--')
+            plt.plot(rho_exploit_gap_hist_plot, lw=3, label=r"$|\rho^{(i)} - {\rho^{(i)}}^*|$", c='indianred', alpha=.8)
+            plt.xlabel("iterations", fontsize=18, labelpad=6)
+            plt.xticks(fontsize=18)
+            plt.ylabel("exploitability", fontsize=18, labelpad=6)
+            plt.yticks(fontsize=18)
+            plt.legend(prop={'size': 16})
+            if not fig_path:
+                plt.show()
+            else:
+                plt.savefig(f"{fig_path}/pidl_exploit_{option}.pdf", bbox_inches='tight')

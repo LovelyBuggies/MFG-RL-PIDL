@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import torch
 import random
-from utils import get_rho_from_u, train_critic_from_V, train_rho_network_from_rho, get_rho_network_from_actor
+from utils import get_rho_from_u, train_critic_from_V, train_rho_network_from_rho, get_rho_network_from_u, get_rho_network_from_actor
 from utils import plot_3d, plot_diff
 from model import Critic, Actor, RhoNetwork
 
@@ -43,11 +43,15 @@ def train_ddpg(alg, option, n_cell, T_terminal, d, fake_critic, pidl_rho_network
     rho_hist = [get_rho_from_u(u_hist[0], d)]
     u_loss_hist, rho_loss_hist = list(), list()
     u_gap_hist, rho_gap_hist = list(), list()
+    u_exploit_gap_hist, rho_exploit_gap_hist = list(), list()
     u_res = np.loadtxt(f"data/u-{option}.txt")
     rho_res = np.loadtxt(f"data/rho-{option}.txt")
 
-    actor = Actor(2)
-    actor_optimizer = torch.optim.Adam(actor.parameters(), lr=1e-3)
+    if alg != 'pidl':
+        actor = Actor(2)
+        actor_optimizer = torch.optim.Adam(actor.parameters(), lr=1e-3)
+
+    u, u_exploit = np.zeros((n_cell, T)), np.zeros((n_cell, T))  # to replace critic for pidl
 
     if fake_critic:
         fake_critic = train_critic_from_V(n_cell, T_terminal, np.zeros((n_cell + 1, T + 1)))
@@ -70,20 +74,37 @@ def train_ddpg(alg, option, n_cell, T_terminal, d, fake_critic, pidl_rho_network
             for t in range(T + 1):
                 keys.append([i / n_cell, t / n_cell])
                 if t != T:
-                    i_tmp = i if i != n_cell else 0
-                    rho_i_t = float(rho_network.forward(np.array([i_tmp, t]) / n_cell))
-                    if alg == "pidl":
-                        speed = float(params[option]["optimal_speed"](
-                            critic(np.array([i, t + 1]) / n_cell),
-                            critic(np.array([0, t + 1]) / n_cell),
-                            rho_i_t
-                        ))
+                    if i != n_cell:
+                        rho_i_t = float(rho_network.forward(np.array([i, t]) / n_cell))
+                        if alg == "pidl":
+                            speed = float(params[option]["optimal_speed"](
+                                critic(np.array([i, t + 1]) / n_cell),
+                                critic(np.array([i + 1, t + 1]) / n_cell),
+                                rho_i_t,
+                            ))
+                        else:
+                            speed = float(actor.forward(np.array([i, t]) / n_cell))
+                        truths.append(
+                            delta_T * params[option]["reward"](speed, rho_i_t) + \
+                            fake_critic.forward(np.array([i + speed, t + 1]) / n_cell)
+                        )
+                        u[i, t] = speed  # this u is only used for pidl
+
                     else:
-                        speed = float(actor.forward(np.array([i_tmp, t]) / n_cell))
-                    truths.append(
-                        delta_T * params[option]["reward"](speed, rho_i_t) + \
-                        fake_critic.forward(np.array([i_tmp + speed, t + 1]) / n_cell)
-                    )
+                        rho_i_t = float(rho_network.forward(np.array([0, t]) / n_cell))
+                        if alg == "pidl":
+                            speed = float(params[option]["optimal_speed"](
+                                critic(np.array([i, t + 1]) / n_cell),
+                                critic(np.array([0, t + 1]) / n_cell),
+                                rho_i_t,
+                            ))
+                        else:
+                            speed = float(actor.forward(np.array([i, t]) / n_cell))
+                        truths.append(
+                            delta_T * params[option]["reward"](speed, rho_i_t) + \
+                            fake_critic.forward(np.array([speed, t + 1]) / n_cell)
+                        )
+
                 else:
                     truths.append(0)
 
@@ -98,39 +119,56 @@ def train_ddpg(alg, option, n_cell, T_terminal, d, fake_critic, pidl_rho_network
         fake_critic = critic
 
         # train actor
-        states, rhos, Vs, Vus = list(), list(), list(), list()
-        for i in range(n_cell):
-            for t in range(T):
-                rho_i_t = float(rho_network.forward(np.array([i, t]) / n_cell))
-                states.append([i / n_cell, t / n_cell])
-                rhos.append(rho_i_t)
+        if alg == 'pidl':
+            # pidl does not have actor
+            for i in range(n_cell):
+                for t in range(T):
+                    rho[i, t] = rho_network(np.array([i, t]) / n_cell)
+                    u_exploit[i, t] = float(params[option]["optimal_speed"](
+                        critic(np.array([i, t + 1]) / n_cell),
+                        critic(np.array([i + 1, t + 1]) / n_cell),
+                        rho[i, t]
+                    ))
+        else:
+            states, rhos, Vs, Vus = list(), list(), list(), list()
+            for i in range(n_cell):
+                for t in range(T):
+                    rho_i_t = float(rho_network.forward(np.array([i, t]) / n_cell))
+                    states.append([i / n_cell, t / n_cell])
+                    rhos.append(rho_i_t)
 
-        for i in range(T):
-            for t in range(n_cell):
-                Vs.append(
-                    float(critic.forward(np.array([i, t + 1]) / n_cell) - critic.forward(np.array([i, t]) / n_cell)))
-                Vus.append(float(
-                    critic.forward(np.array([i + 1, t + 1]) / n_cell) - critic.forward(np.array([i, t + 1]) / n_cell)))
+            for i in range(T):
+                for t in range(n_cell):
+                    Vs.append(
+                        float(
+                            critic.forward(np.array([i, t + 1]) / n_cell) - critic.forward(np.array([i, t]) / n_cell)))
+                    Vus.append(float(
+                        critic.forward(np.array([i + 1, t + 1]) / n_cell) - critic.forward(
+                            np.array([i, t + 1]) / n_cell)))
 
-        states = np.array(states)
-        rhos = torch.tensor(np.reshape(np.array(rhos), (n_cell * T, 1)))
-        Vs = torch.tensor(np.reshape(np.array(Vs), (n_cell * T, 1)))
-        Vus = torch.tensor(np.reshape(np.array(Vus), (n_cell * T, 1)))
-        for _ in range(params[option]["n_train_critic"]):
-            speeds = actor.forward(states)
-            advantages = delta_T * params[option]["reward"](speeds, rhos) + Vus * speeds + Vs
-            policy_loss = advantages.mean()
-            actor_optimizer.zero_grad()
-            policy_loss.backward()
-            actor_optimizer.step()
+            states = np.array(states)
+            rhos = torch.tensor(np.reshape(np.array(rhos), (n_cell * T, 1)))
+            Vs = torch.tensor(np.reshape(np.array(Vs), (n_cell * T, 1)))
+            Vus = torch.tensor(np.reshape(np.array(Vus), (n_cell * T, 1)))
+            for _ in range(params[option]["n_train_critic"]):
+                speeds = actor.forward(states)
+                advantages = delta_T * params[option]["reward"](speeds, rhos) + Vus * speeds + Vs
+                policy_loss = advantages.mean()
+                actor_optimizer.zero_grad()
+                policy_loss.backward()
+                actor_optimizer.step()
+
+            for i in range(n_cell):
+                for t in range(T):
+                    u[i, t] = actor.forward(np.array([i, t]) / n_cell)
+                    rho[i, t] = rho_network(np.array([i, t]) / n_cell)
+                    u_exploit[i, t] = float(params[option]["optimal_speed"](
+                        critic(np.array([i, t + 1]) / n_cell),
+                        critic(np.array([i + 1, t + 1]) / n_cell),
+                        rho[i, t],
+                    ))
 
         # train rho net
-        u = np.zeros((n_cell, T))
-        for i in range(n_cell):
-            for t in range(T):
-                u[i, t] = actor.forward(np.array([i, t]) / n_cell)
-                rho[i, t] = rho_network(np.array([i, t]) / n_cell)
-
         u_hist.append(u)
         rho_hist.append(get_rho_from_u(u, d))
         u = np.array(u_hist).mean(axis=0)
@@ -139,9 +177,15 @@ def train_ddpg(alg, option, n_cell, T_terminal, d, fake_critic, pidl_rho_network
             rho_loss_hist.append(np.mean(abs(rho - rho_res)))
             u_gap_hist.append(np.mean(abs(u_hist[-1] - u_hist[-2])))
             rho_gap_hist.append(np.mean(abs(rho_hist[-1] - rho_hist[-2])))
+            u_exploit_gap_hist.append(abs(u - u_exploit).mean())
+            rho_exploit_gap_hist.append(abs(rho - get_rho_from_u(u_exploit, d)).mean())
 
         if pidl_rho_network:
-            rho_network = get_rho_network_from_actor(n_cell, T_terminal, actor, d, rho_network, rho_optimizer,
+            if alg == 'pidl':
+                rho_network = get_rho_network_from_u(n_cell, T_terminal, u, d, rho_network, rho_optimizer,
+                                                         n_iterations=params[option]["n_train_rho_net"])
+            else:
+                rho_network = get_rho_network_from_actor(n_cell, T_terminal, actor, d, rho_network, rho_optimizer,
                                                      n_iterations=params[option]["n_train_rho_net"],
                                                      physical_step=random.uniform(0.9, 1))
         else:
@@ -172,4 +216,6 @@ def train_ddpg(alg, option, n_cell, T_terminal, d, fake_critic, pidl_rho_network
         pd.DataFrame(rho_gap_hist).to_csv(f"./diff/rho-gap-{option}.csv")
         pd.DataFrame(u_loss_hist).to_csv(f"./diff/u-loss-{option}.csv")
         pd.DataFrame(rho_loss_hist).to_csv(f"./diff/rho-loss-{option}.csv")
+        pd.DataFrame(u_exploit_gap_hist).to_csv(f"./diff/u-exploit-{option}.csv")
+        pd.DataFrame(rho_exploit_gap_hist).to_csv(f"./diff/rho-exploit-{option}.csv")
         plot_diff("./diff/", smooth=False)
