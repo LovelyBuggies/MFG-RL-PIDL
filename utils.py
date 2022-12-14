@@ -248,26 +248,20 @@ def plot_diff(fig_path=None, smooth=False):
             else:
                 plt.savefig(f"{fig_path}/pidl_loss_{option}.pdf", bbox_inches='tight')
 
-        if os.path.exists(f"./diff/u-exploit-{option}.csv"):
-            fig, ax = plt.subplots(figsize=(8, 4))
-            u_exploit_gap_hist = pd.read_csv(f"./diff/u-exploit-{option}.csv")['0'].values.tolist()
-            rho_exploit_gap_hist = pd.read_csv(f"./diff/rho-exploit-{option}.csv")['0'].values.tolist()
+        if os.path.exists(f"./diff/V-exploit-{option}.csv"):
+            fig, ax = plt.subplots(figsize=(10, 4))
+            V_exploit_gap_hist = pd.read_csv(f"./diff/V-exploit-{option}.csv")['0'].values.tolist()
             if smooth:
-                u_exploit_gap_hist_plot = savgol_filter([u for u in u_exploit_gap_hist], 13, 3)
-                u_exploit_gap_hist_plot = [u if u > 0 else 0 for u in u_exploit_gap_hist_plot]
-                rho_exploit_gap_hist_plot = savgol_filter([rho for rho in rho_exploit_gap_hist], 13, 3)
-                rho_exploit_gap_hist_plot = [rho if rho > 0 else 0 for rho in rho_exploit_gap_hist_plot]
+                V_exploit_gap_hist_plot = savgol_filter([u for u in V_exploit_gap_hist], 13, 3)
+                V_exploit_gap_hist_plot = [u if u > 0 else 0 for u in V_exploit_gap_hist_plot]
             else:
-                u_exploit_gap_hist_plot = u_exploit_gap_hist
-                rho_exploit_gap_hist_plot = rho_exploit_gap_hist
+                V_exploit_gap_hist_plot = V_exploit_gap_hist
 
-            plt.plot(u_exploit_gap_hist_plot, lw=3, label=r"$|u^{(i)} - {u^{(i)}}^*|$", c='steelblue', ls='--')
-            plt.plot(rho_exploit_gap_hist_plot, lw=3, label=r"$|\rho^{(i)} - {\rho^{(i)}}^*|$", c='indianred', alpha=.8)
-            plt.xlabel("iterations", fontsize=18, labelpad=6)
+            plt.plot([100 * i for i in range(len(V_exploit_gap_hist_plot))], V_exploit_gap_hist_plot, lw=2, c='steelblue', ls='-')
+            plt.xlabel("steps", fontsize=18, labelpad=6)
             plt.xticks(fontsize=18)
             plt.ylabel("exploitability", fontsize=18, labelpad=6)
             plt.yticks(fontsize=18)
-            plt.legend(prop={'size': 16})
             if not fig_path:
                 plt.show()
             else:
