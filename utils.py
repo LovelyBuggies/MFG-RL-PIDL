@@ -49,62 +49,62 @@ def network_loading(n_cell, T_terminal, model, u, beta, demand):
     return rho
 
 
-def network_loading_from_rho_network(n_cell, T_terminal, model, u, beta, demand, rho_network, rho_optimizer):
-    T = n_cell * T_terminal
-    states, rho_values = list(), list()
-    for l in range(model.n_edge):
-        for t in range(T):
-            for i in range(n_cell):
-                states.append(np.array([l, i / n_cell, t / n_cell]))
-                if t == 0:
-                    rho_values.append(0)
-                else:
-                    if i >= 1:
-                        rho_values.append(
-                            float(rho_network(np.array([l, i / n_cell, (t - 1) / n_cell])) +
-                                  rho_network(np.array([l, (i - 1) / n_cell, (t - 1) / n_cell])) * u[l, i - 1, t - 1] -
-                                  rho_network(np.array([l, i / n_cell, (t - 1) / n_cell])) * u[l, i, t - 1])
-                        )
-                    else:
-                        q_in = 0
-                        start_node = model.edges[l, 0]
-                        if start_node == model.origin:
-                            q_in = demand[t - 1]
-                        else:
-                            for in_node in range(model.n_node):
-                                k = model.adjacency[in_node, start_node]
-                                if k > -1:
-                                    q_in += float(
-                                        rho_network(np.array([k, (n_cell - 1) / n_cell, (t - 1) / n_cell])) *
-                                        u[k, n_cell - 1, t - 1]
-                                    )
+# def network_loading_from_rho_network(n_cell, T_terminal, model, u, beta, demand, rho_network, rho_optimizer):
+#     T = n_cell * T_terminal
+#     states, rho_values = list(), list()
+#     for l in range(model.n_edge):
+#         for t in range(T):
+#             for i in range(n_cell):
+#                 states.append(np.array([l, i / n_cell, t / n_cell]))
+#                 if t == 0:
+#                     rho_values.append(0)
+#                 else:
+#                     if i >= 1:
+#                         rho_values.append(
+#                             float(rho_network(np.array([l, i / n_cell, (t - 1) / n_cell])) +
+#                                   rho_network(np.array([l, (i - 1) / n_cell, (t - 1) / n_cell])) * u[l, i - 1, t - 1] -
+#                                   rho_network(np.array([l, i / n_cell, (t - 1) / n_cell])) * u[l, i, t - 1])
+#                         )
+#                     else:
+#                         q_in = 0
+#                         start_node = model.edges[l, 0]
+#                         if start_node == model.origin:
+#                             q_in = demand[t - 1]
+#                         else:
+#                             for in_node in range(model.n_node):
+#                                 k = model.adjacency[in_node, start_node]
+#                                 if k > -1:
+#                                     q_in += float(
+#                                         rho_network(np.array([k, (n_cell - 1) / n_cell, (t - 1) / n_cell])) *
+#                                         u[k, n_cell - 1, t - 1]
+#                                     )
+#
+#                         rho_values.append(
+#                             float(rho_network(np.array([l, 0, (t - 1) / n_cell]))) +
+#                             beta[l, t - 1] * q_in -
+#                             float(rho_network(np.array([l, 0, (t - 1) / n_cell])) * u[l, 0, t - 1])
+#                         )
+#
+#     rho_values = torch.tensor(rho_values)
+#     for _ in range(1000):
+#         preds = torch.reshape(rho_network(np.array(states)), (1, len(rho_values)))
+#         rho_loss = (rho_values - preds).abs().mean()
+#         rho_optimizer.zero_grad()
+#         rho_loss.backward()
+#         rho_optimizer.step()
+#
+#     return rho_network
 
-                        rho_values.append(
-                            float(rho_network(np.array([l, 0, (t - 1) / n_cell]))) +
-                            beta[l, t - 1] * q_in -
-                            float(rho_network(np.array([l, 0, (t - 1) / n_cell])) * u[l, 0, t - 1])
-                        )
 
-    rho_values = torch.tensor(rho_values)
-    for _ in range(1000):
-        preds = torch.reshape(rho_network(np.array(states)), (1, len(rho_values)))
-        rho_loss = (rho_values - preds).abs().mean()
-        rho_optimizer.zero_grad()
-        rho_loss.backward()
-        rho_optimizer.step()
-
-    return rho_network
-
-
-def get_rho_from_net(n_cell, T_terminal, model, rho_network):
-    T = n_cell * T_terminal
-    rho = np.zeros((model.n_edge, n_cell, T))
-    for l in range(model.n_edge):
-        for i in range(n_cell):
-            for t in range(T):
-                rho[l, i, t] = rho_network(np.array([l, i / n_cell, t / n_cell]))
-
-    return rho
+# def get_rho_from_net(n_cell, T_terminal, model, rho_network):
+#     T = n_cell * T_terminal
+#     rho = np.zeros((model.n_edge, n_cell, T))
+#     for l in range(model.n_edge):
+#         for i in range(n_cell):
+#             for t in range(T):
+#                 rho[l, i, t] = rho_network(np.array([l, i / n_cell, t / n_cell]))
+#
+#     return rho
 
 
 def plot_3d(n_cell, T_terminal, rho, fig_name):

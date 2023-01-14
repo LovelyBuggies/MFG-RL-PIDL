@@ -4,7 +4,7 @@ import torch
 from value_iteration import value_iteration_routing
 from load_model import load_model_braess
 from model import RhoNetwork
-from utils import network_loading, network_loading_from_rho_network, get_rho_from_net, plot_4d
+from utils import network_loading, plot_4d
 
 
 if __name__ == '__main__':
