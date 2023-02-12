@@ -33,7 +33,7 @@ if __name__ == '__main__':
     # rho_optimizer = torch.optim.Adam(rho_network.parameters(), lr=1e-3)
     # rho_network = network_loading_from_rho_network(n_cell, T_terminal, model, u, beta, demand, rho_network, rho_optimizer)
 
-    for loop in range(300):
+    for loop in range(50):
         print(loop)
         u, critic, beta, pi = value_iteration_routing(model, n_cell, T, rho)
         # u, V, beta, pi = value_iteration_routing(model, n_cell, T, get_rho_from_net(n_cell, T_terminal, model, rho_network))

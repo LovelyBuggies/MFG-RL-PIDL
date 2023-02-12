@@ -12,7 +12,7 @@ def value_iteration_routing(model, n_cell, T, rho):
     # critic_optimizer = torch.optim.Adam(critic.parameters(), lr=1e-3)
     # states, critic_values = list(), list()
     pi = np.zeros((model.n_node, T + 1), dtype=float)
-    c = np.array([1, 1, 1, 1, 0])
+    c = np.array([1, 3, 3, 1, 1])
     for l in range(model.n_edge):
         start_node, end_node = model.edges[l, 0], model.edges[l, 1]
         for i in range(n_cell):

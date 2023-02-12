@@ -25,7 +25,8 @@ def get_rho_from_u(u, d):
 def network_loading(n_cell, T_terminal, model, u, beta, demand):
     T = n_cell * T_terminal
     rho = np.zeros((model.n_edge, n_cell, T))
-    for l in range(model.n_edge):
+    link_sequence = [0, 2, 1, 4, 3]
+    for l in link_sequence:
         for t in range(1, T):
             for i in range(n_cell):
                 if t == 0:
