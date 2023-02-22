@@ -263,7 +263,7 @@ def plot_diff(fig_path=None, smooth=False):
             else:
                 plt.savefig(f"{fig_path}/pidl_loss_{option}.pdf", bbox_inches='tight')
 
-    fig, ax = plt.subplots(figsize=(12, 8))
+    fig, ax = plt.subplots(figsize=(8, 4))
     for i, option in enumerate(["lwr", "sep", "non-sep"]):
         if os.path.exists(f"./diff/V-exploit-{option}.csv"):
             V_exploit_gap_hist = pd.read_csv(f"./diff/V-exploit-{option}.csv")['0'].values.tolist()
@@ -273,14 +273,15 @@ def plot_diff(fig_path=None, smooth=False):
             else:
                 V_exploit_gap_hist_plot = V_exploit_gap_hist
 
-            plt.plot([100 * i for i in range(len(V_exploit_gap_hist_plot))], V_exploit_gap_hist_plot, lw=4,
+            plt.plot([100 * i for i in range(len(V_exploit_gap_hist_plot))], V_exploit_gap_hist_plot, lw=3,
                      c=colors[i], ls=lss[i], label=labels[i])
 
-    plt.xlabel("steps", fontsize=20, labelpad=6)
-    plt.xticks(fontsize=20)
-    plt.ylabel("exploitability", fontsize=20, labelpad=6)
-    plt.yticks(fontsize=20)
-    plt.legend(fontsize=18)
+    plt.xlabel("steps", fontsize=18, labelpad=6)
+    plt.xticks(fontsize=18)
+    plt.ylabel("exploitability", fontsize=18, labelpad=6)
+    plt.yticks(fontsize=18)
+    plt.legend(fontsize=16, loc=4)
+    plt.ylim(-0.005, 0.0005)
     if not fig_path:
         plt.show()
     else:
