@@ -207,7 +207,10 @@ def plot_3d(n_cell, T_terminal, rho, ax_name, fig_name=None):
 
 
 def plot_diff(fig_path=None, smooth=False):
-    for option in ["lwr", "non-sep", "sep"]:
+    colors = ["orange", "steelblue", "indianred"]
+    labels = ["LWR", "Separable", "Non-separable"]
+    lss = ["-", "--", ":"]
+    for i, option in enumerate(["lwr", "sep", "non-sep"]):
         if os.path.exists(f"./diff/u-gap-{option}.csv"):
             fig, ax = plt.subplots(figsize=(8, 4))
             u_diff_hist = pd.read_csv(f"./diff/u-gap-{option}.csv")['0'].values.tolist()
@@ -260,8 +263,9 @@ def plot_diff(fig_path=None, smooth=False):
             else:
                 plt.savefig(f"{fig_path}/pidl_loss_{option}.pdf", bbox_inches='tight')
 
+    fig, ax = plt.subplots(figsize=(12, 8))
+    for i, option in enumerate(["lwr", "sep", "non-sep"]):
         if os.path.exists(f"./diff/V-exploit-{option}.csv"):
-            fig, ax = plt.subplots(figsize=(10, 4))
             V_exploit_gap_hist = pd.read_csv(f"./diff/V-exploit-{option}.csv")['0'].values.tolist()
             if smooth:
                 V_exploit_gap_hist_plot = savgol_filter([u for u in V_exploit_gap_hist], 13, 3)
@@ -269,12 +273,15 @@ def plot_diff(fig_path=None, smooth=False):
             else:
                 V_exploit_gap_hist_plot = V_exploit_gap_hist
 
-            plt.plot([100 * i for i in range(len(V_exploit_gap_hist_plot))], V_exploit_gap_hist_plot, lw=2, c='steelblue', ls='-')
-            plt.xlabel("steps", fontsize=18, labelpad=6)
-            plt.xticks(fontsize=18)
-            plt.ylabel("exploitability", fontsize=18, labelpad=6)
-            plt.yticks(fontsize=18)
-            if not fig_path:
-                plt.show()
-            else:
-                plt.savefig(f"{fig_path}/pidl_exploit_{option}.pdf", bbox_inches='tight')
+            plt.plot([100 * i for i in range(len(V_exploit_gap_hist_plot))], V_exploit_gap_hist_plot, lw=4,
+                     c=colors[i], ls=lss[i], label=labels[i])
+
+    plt.xlabel("steps", fontsize=20, labelpad=6)
+    plt.xticks(fontsize=20)
+    plt.ylabel("exploitability", fontsize=20, labelpad=6)
+    plt.yticks(fontsize=20)
+    plt.legend(fontsize=18)
+    if not fig_path:
+        plt.show()
+    else:
+        plt.savefig(f"{fig_path}/rl_pidl_exploit.pdf", bbox_inches='tight')
