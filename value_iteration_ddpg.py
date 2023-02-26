@@ -47,7 +47,7 @@ def train_ddpg(alg, option, n_cell, T_terminal, d, fake_critic, pidl_rho_network
     u_res = np.loadtxt(f"data/u-{option}.txt")
     rho_res = np.loadtxt(f"data/rho-{option}.txt")
 
-    if alg != 'pidl':
+    if alg == 'rl+pidl':
         actor = Actor(2)
         actor_optimizer = torch.optim.Adam(actor.parameters(), lr=1e-3)
 
@@ -118,7 +118,7 @@ def train_ddpg(alg, option, n_cell, T_terminal, d, fake_critic, pidl_rho_network
         fake_critic = critic
 
         # train actor
-        if alg != 'pidl':
+        if alg == 'rl+pidl':
             states, rhos, Vs, Vus = list(), list(), list(), list()
             for i in range(n_cell):
                 for t in range(T):
