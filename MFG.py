@@ -11,7 +11,7 @@ if __name__ == "__main__":
 
     algs = ["pidl", "rl+pidl"]
     options = ["lwr", "non-sep", "sep"]
-    alg, option = algs[0], options[0]
+    alg, option = algs[0], options[1]
     d = np.loadtxt(f"data/rho-{option}.txt")[:, 0].flatten("F")
     train_ddpg(
         alg,
