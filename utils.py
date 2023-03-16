@@ -11,30 +11,18 @@ from scipy.signal import savgol_filter
 from model import Critic, Actor
 
 
-def get_rho_from_u(u, d, option="ring"):
-    n_cell = u.shape[0]
-    T_terminal = int(u.shape[1] / u.shape[0])
-    rho = np.zeros((n_cell, n_cell * T_terminal), dtype=np.float64)
-    for t in range(n_cell * T_terminal):
+def get_rho_from_u(n_cell, T_terminal, u, d):
+    def get_rho_from_u_at_t(n_cell, rho, u_t):
+        rho1 = np.ones(n_cell)  # must be a copy here
         for i in range(n_cell):
-            if t == 0:
-                rho[i, t] = d[i] if option == "ring" else 0
-            else:
-                if i == 0:
-                    if option == "ring":
-                        rho[i, t] = (
-                            rho[i, t - 1]
-                            + rho[-1, t - 1] * u[-1, t - 1]
-                            - rho[i, t - 1] * u[i, t - 1]
-                        )
-                    else:
-                        rho[i][t] = rho[i][t - 1] + d[t] - rho[i][t - 1] * u[i, t - 1]
-                else:
-                    rho[i, t] = (
-                        rho[i][t - 1]
-                        + rho[i - 1, t - 1] * u[i - 1, t - 1]
-                        - rho[i, t - 1] * u[i, t - 1]
-                    )
+            rho1[i] = rho[i] + rho[i - 1] * u_t[i - 1] - rho[i] * u_t[i]
+        return rho1
+
+    T = n_cell * T_terminal
+    rho, rho_t = np.zeros((n_cell, T)), d
+    for t in range(T):
+        rho[:, t] = rho_t[:]
+        rho_t = get_rho_from_u_at_t(n_cell, rho_t, u[:, t])
 
     return rho
 
@@ -122,7 +110,7 @@ def get_rho_network_from_u(
     d,
     rho_network,
     rho_optimizer,
-    n_iterations=100,
+    n_iterations=10,
     option="ring",
 ):
     def get_rho_from_u_at_t(n_cell, rho, u_t):
