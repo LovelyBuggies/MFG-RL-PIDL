@@ -19,7 +19,7 @@ if __name__ == "__main__":
         n_cell,
         T_terminal,
         d,
-        fake_critic=True,
+        fake_critic=False,
         pidl_rho_network=True,
         surf_plot=True,
         smooth_plot=False,

@@ -13,12 +13,10 @@ class Actor(nn.Module):
             nn.Linear(32, 16),
             nn.ReLU(),
             nn.Linear(16, 8),
-            nn.ReLU(),
-            nn.Linear(8, 1)
         )
 
     def forward(self, x):
-        x = self.model(torch.from_numpy(x).float())
+        x = self.model(x.float())
         x = torch.tanh(x)
         x = (x + 1) / 2
         return x
@@ -36,13 +34,13 @@ class Critic(nn.Module):
             nn.ReLU(),
             nn.Linear(16, 8),
             nn.ReLU(),
-            nn.Linear(8, 1)
+            nn.Linear(8, 1),
         )
 
     def forward(self, x):
-        x = self.model(torch.from_numpy(x).float())
+        x = self.model(x.float())
         x = torch.tanh(x)
-        x = x / 2
+        x = (x + 1) / 2
         return x
 
 
@@ -58,7 +56,7 @@ class RhoNetwork(nn.Module):
             nn.ReLU(),
             nn.Linear(16, 8),
             nn.ReLU(),
-            nn.Linear(8, 1)
+            nn.Linear(8, 1),
         )
 
     def forward(self, x):

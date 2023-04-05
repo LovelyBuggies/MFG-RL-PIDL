@@ -11,13 +11,14 @@ from scipy.signal import savgol_filter
 from model import Critic, Actor
 
 
-def get_rho_from_u(n_cell, T_terminal, u, d):
-    def get_rho_from_u_at_t(n_cell, rho, u_t):
-        rho1 = np.ones(n_cell)  # must be a copy here
-        for i in range(n_cell):
-            rho1[i] = rho[i] + rho[i - 1] * u_t[i - 1] - rho[i] * u_t[i]
-        return rho1
+def get_rho_from_u_at_t(n_cell, rho, u_t):
+    rho1 = torch.ones(n_cell)  # must be a copy here
+    for i in range(n_cell):
+        rho1[i] = rho[i] + rho[i - 1] * u_t[i - 1] - rho[i] * u_t[i]
+    return rho1
 
+
+def get_rho_from_u(n_cell, T_terminal, u, d):
     T = n_cell * T_terminal
     rho, rho_t = np.zeros((n_cell, T)), d
     for t in range(T):
