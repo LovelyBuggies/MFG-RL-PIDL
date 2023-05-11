@@ -46,9 +46,9 @@ def train_ddpg(
         },
         "non-sep": {
             "n_episode": 300 if alg == "pidl" else 500,
-            "n_train_critic": 100,
-            "n_train_actor": 5000,
-            "n_train_rho_net": 10,
+            "n_train_critic": 1000,
+            "n_train_actor": 500,
+            "n_train_rho_net": 100,
             "plot_interval": 20,
             "init_speed": 0.5,
             "reward": lambda speed, rho: 0.5 * speed**2 + rho * speed - speed,
@@ -72,22 +72,16 @@ def train_ddpg(
     actor_optimizer = torch.optim.Adam(actor.parameters(), lr=1e-3)
     fake_critic = Critic(n_cell)
     critic = Critic(n_cell)
-    critic_optimizer = torch.optim.Adam(critic.parameters(), lr=1e-3)
+    critic_optimizer = torch.optim.Adam(critic.parameters(), lr=0.5 * 1e-4)
     for it in range(params[option]["n_episode"] + 1):
         print(it)
-        rhos, rhos_next, truths = list(), list(), list()
+        rhos, rhos_next = list(), list()
         rho = torch.tensor(d)
         for t in range(T):
             speed = actor.forward(rho)
-            reward = rho * delta_T * params[option]["reward"](speed, rho)
             rho_next = get_rho_from_u_at_t(n_cell, rho, speed)
-            V_next = fake_critic.forward(rho_next)
-            V = sum(reward) + V_next
-
             rhos.append(rho.tolist())
             rhos_next.append(rho_next.tolist())
-            truths.append(V.tolist())
-
             rho = rho_next.detach().clone()
 
         # train actor
@@ -107,10 +101,14 @@ def train_ddpg(
             actor_optimizer.step()
 
         # train critic
-        truths = torch.tensor(truths, requires_grad=True)
         for _ in range(params[option]["n_train_critic"]):
-            preds = torch.reshape(critic.forward(rhos), (1, len(truths)))
-            critic_loss = (truths - preds).abs().mean()
+            speeds = actor.forward(rhos)
+            critic_advantages = torch.sum(
+                rhos * delta_T * params[option]["reward"](speeds, rhos), 0
+            ) + torch.reshape(
+                fake_critic.forward(rhos_next) - fake_critic.forward(rhos), (T, 1)
+            )
+            critic_loss = critic_advantages.mean()
             critic_optimizer.zero_grad()
             critic_loss.backward()
             critic_optimizer.step()
